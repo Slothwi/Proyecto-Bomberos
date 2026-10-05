@@ -1,0 +1,10 @@
+{
+  "description": "A sleek dark mode dashboard for fire command centers offering real-time emergency logs, AI assistance, and resource status to optimize response efforts.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

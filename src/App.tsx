@@ -251,6 +251,50 @@ export default function App() {
   const [aiMessage, setAiMessage] = useState("¿En qué puedo asistir al mando?");
   const [showNewIncident, setShowNewIncident] = useState(false);
   const [notice, setNotice] = useState("");
+  
+  // Estado para manejar la lista dinámica de incidentes
+  const [incidentsList, setIncidentsList] = useState(incidents);
+  
+  // Estado para capturar los datos ingresados en el formulario
+  const [newIncident, setNewIncident] = useState({
+    code: "",
+    title: "",
+    address: "",
+    unit: "B-10",
+    date: new Date().toISOString().split("T")[0],
+    time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+  });
+
+  // Función para agregar la nueva emergencia
+  const handleCreateIncident = () => {
+    if (!newIncident.code.trim() || !newIncident.address.trim()) return;
+
+    setIncidentsList((prev) => [
+      {
+        code: newIncident.code,
+        title: newIncident.title || "Emergencia despachada",
+        address: newIncident.address,
+        time: newIncident.time,
+        unit: newIncident.unit,
+        level: "En operación",
+        tone: "critical",
+      },
+      ...prev,
+    ]);
+
+    setShowNewIncident(false);
+    setNotice("Emergencia registrada e ingresada al historial");
+
+    // Limpiar formulario para el siguiente registro
+    setNewIncident({
+      code: "",
+      title: "",
+      address: "",
+      unit: "B-10",
+      date: new Date().toISOString().split("T")[0],
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    });
+  };
 
   const askAi = (prompt?: string) => {
     const next = prompt || query.trim();
@@ -385,8 +429,8 @@ export default function App() {
               <span>INCIDENTE / UBICACIÓN</span><span>DESPACHO</span><span>UNIDAD</span><span>ESTADO</span>
             </div>
             <div className="incident-list">
-              {incidents.map((incident) => (
-                <div className="incident-row" key={incident.code}>
+              {incidentsList.map((incident) => (
+                <div className="incident-row" key={`${incident.code}-${incident.time}`}>
                   <div className="incident-main">
                     <span className={`incident-mark ${incident.tone}`}><Icon name="alert" size={16} /></span>
                     <div>
@@ -476,11 +520,47 @@ export default function App() {
             <div className="modal-icon"><Icon name="alert" size={24} /></div>
             <div className="modal-title">Registrar emergencia</div>
             <div className="modal-copy">Inicia un nuevo despacho operativo y alerta a la central.</div>
-            <label>CLAVE DE EMERGENCIA<input autoFocus placeholder="Ej. 10-0-1" /></label>
-            <label>UBICACIÓN<input placeholder="Dirección o referencia" /></label>
+            
+            <label>
+              CLAVE DE EMERGENCIA
+              <input 
+                autoFocus 
+                placeholder="Ej. 10-0-1" 
+                value={newIncident.code}
+                onChange={(e) => setNewIncident({ ...newIncident, code: e.target.value })}
+              />
+            </label>
+
+            <label>
+              TÍTULO / TIPO DE INCIDENTE
+              <input 
+                placeholder="Ej. Fuego estructural" 
+                value={newIncident.title}
+                onChange={(e) => setNewIncident({ ...newIncident, title: e.target.value })}
+              />
+            </label>
+
+            <label>
+              UBICACIÓN
+              <input 
+                placeholder="Dirección o referencia" 
+                value={newIncident.address}
+                onChange={(e) => setNewIncident({ ...newIncident, address: e.target.value })}
+              />
+            </label>
+
+            <label>
+              UNIDAD ASIGNADA
+              <input 
+                placeholder="Ej. B-10" 
+                value={newIncident.unit}
+                onChange={(e) => setNewIncident({ ...newIncident, unit: e.target.value })}
+              />
+            </label>
+
             <div className="modal-actions">
               <Button className="secondary-button" onClick={() => setShowNewIncident(false)}>Cancelar</Button>
-              <Button className="primary-button" onClick={() => { setShowNewIncident(false); setNotice("Emergencia registrada y central alertada"); }}>
+              <Button className="primary-button" onClick={handleCreateIncident}>
                 <Icon name="radio" size={16} /> Activar despacho
               </Button>
             </div>

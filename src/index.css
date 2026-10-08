@@ -1,5 +1,6 @@
 @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
 
 :root {
   --bg: #0f1115;
@@ -91,6 +92,7 @@ input:focus-visible {
   align-items: center;
   gap: 13px;
   min-width: 0;
+  background-color: transparent;
 }
 
 .emblem {
@@ -98,6 +100,7 @@ input:focus-visible {
   height: 66px;
   flex: none;
   filter: contrast(1.08) saturate(1.08) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.45));
+  mix-blend-mode: screen; 
 }
 
 .brand-copy {

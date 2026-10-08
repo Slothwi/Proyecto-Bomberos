@@ -1,5 +1,8 @@
 import { FormEvent, ReactNode, useState } from "react";
-import companyLogo from "./assets/bomba-espana-logo.jpg";
+import companyLogo from "./assets/logo-bomberos.png";
+import DotacionView from "./DotacionView";
+import UserProfile from "./UserProfile";
+import FleetMap from "./FleetMap";
 
 type IconName =
   | "alert"
@@ -30,11 +33,7 @@ function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
         <path d="M10.3 3.6 2.4 17.2A2 2 0 0 0 4.1 20h15.8a2 2 0 0 0 1.7-2.8L13.7 3.6a2 2 0 0 0-3.4 0Z" />
       </>
     ),
-    arrow: (
-      <>
-        <path d="m9 18 6-6-6-6" />
-      </>
-    ),
+    arrow: <path d="m9 18 6-6-6-6" />,
     bell: (
       <>
         <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
@@ -86,9 +85,7 @@ function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
     ),
     shield: <path d="M12 22S20 18 20 11V5l-8-3-8 3v6c0 7 8 11 8 11Z" />,
     spark: (
-      <>
-        <path d="m12 3-1.1 4.2A5.2 5.2 0 0 1 7.2 11L3 12l4.2 1.1a5.2 5.2 0 0 1 3.7 3.7L12 21l1.1-4.2a5.2 5.2 0 0 1 3.7-3.7L21 12l-4.2-1a5.2 5.2 0 0 1-3.7-3.8Z" />
-      </>
+      <path d="m12 3-1.1 4.2A5.2 5.2 0 0 1 7.2 11L3 12l4.2 1.1a5.2 5.2 0 0 1 3.7 3.7L12 21l1.1-4.2a5.2 5.2 0 0 1 3.7-3.7L21 12l-4.2-1a5.2 5.2 0 0 1-3.7-3.8Z" />
     ),
     truck: (
       <>
@@ -102,7 +99,7 @@ function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
       <>
         <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
         <circle cx="9" cy="7" r="4" />
-        <path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8" />
+        <path d="M22 21v-2a4 4 0 0 1 0 7.8" />
       </>
     ),
   };
@@ -122,8 +119,6 @@ function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
 }
 
 function Emblem({ watermark = false }: { watermark?: boolean }) {
-  const filterId = watermark ? "remove-white-watermark" : "remove-white-emblem";
-
   return (
     <svg
       aria-hidden={watermark ? "true" : undefined}
@@ -132,19 +127,7 @@ function Emblem({ watermark = false }: { watermark?: boolean }) {
       role={watermark ? undefined : "img"}
       viewBox="0 0 500 500"
     >
-      <defs>
-        <filter id={filterId} colorInterpolationFilters="sRGB">
-          <feColorMatrix
-            type="matrix"
-            values="1 0 0 0 0
-                    0 1 0 0 0
-                    0 0 1 0 0
-                   -1 -1 -1 0 3"
-          />
-        </filter>
-      </defs>
       <image
-        filter={`url(#${filterId})`}
         height="500"
         href={companyLogo}
         preserveAspectRatio="xMidYMid meet"
@@ -175,11 +158,17 @@ function Button({
 function Panel({
   children,
   className = "",
+  style,
 }: {
   children: ReactNode;
   className?: string;
+  style?: React.CSSProperties;
 }) {
-  return <section className={`panel ${className}`}>{children}</section>;
+  return (
+    <section className={`panel ${className}`} style={style}>
+      {children}
+    </section>
+  );
 }
 
 function SectionHeader({
@@ -207,6 +196,15 @@ function SectionHeader({
       {action}
     </div>
   );
+}
+
+interface InventoryItem {
+  id: string;
+  name: string;
+  category: string;
+  type: string;
+  status: string;
+  location: string;
 }
 
 const incidents = [
@@ -239,6 +237,15 @@ const incidents = [
   },
 ];
 
+const initialInventory: InventoryItem[] = [
+  { id: "EQ-01", name: "Bomba B-10", category: "Vehículo", type: "Carro Bomba 4.000L", status: "Disponible", location: "Cuartel Central" },
+  { id: "EQ-02", name: "Rescate RX-10", category: "Vehículo", type: "Rescate Pesado", status: "En servicio", location: "Ruta 5 / Toesca" },
+  { id: "EQ-03", name: "HazMat H-10", category: "Vehículo", type: "Materiales Peligrosos", status: "Disponible", location: "Cuartel Central" },
+  { id: "EQ-04", name: "Equipos ERA (x14)", category: "Equipamiento", type: "Respiración Autónoma", status: "Disponible", location: "Pañol de Equipos" },
+  { id: "EQ-05", name: "Equipos ERA (x2)", category: "Equipamiento", type: "Respiración Autónoma", status: "Mantenimiento", location: "Taller Central" },
+  { id: "EQ-06", name: "Traje Estructural #12", category: "EPI", type: "Protección Personal", status: "Fuera de servicio", location: "Bodega" },
+];
+
 const crew = [
   { initials: "FM", name: "Felipe Muñoz", role: "Teniente 1°", certifications: ["Rescate Urbano", "Mando"] },
   { initials: "CV", name: "Catalina Vera", role: "Maquinista", certifications: ["Operador B-10", "HazMat"] },
@@ -247,10 +254,89 @@ const crew = [
 ];
 
 export default function App() {
+  const [currentView, setCurrentView] = useState<"dashboard" | "dotacion" | "perfil">("dashboard");
   const [query, setQuery] = useState("");
   const [aiMessage, setAiMessage] = useState("¿En qué puedo asistir al mando?");
   const [showNewIncident, setShowNewIncident] = useState(false);
   const [notice, setNotice] = useState("");
+  
+  const [incidentsList, setIncidentsList] = useState(incidents);
+  const [inventoryList, setInventoryList] = useState<InventoryItem[]>(initialInventory);
+  const [filterStatus, setFilterStatus] = useState<string>("todos");
+  const [showAddInventory, setShowAddInventory] = useState(false);
+
+  const [newIncident, setNewIncident] = useState({
+    code: "",
+    title: "",
+    address: "",
+    unit: "B-10",
+    date: new Date().toISOString().split("T")[0],
+    time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+  });
+
+  const [newItem, setNewItem] = useState({
+    name: "",
+    category: "Vehículo",
+    type: "",
+    status: "Disponible",
+    location: "Cuartel Central",
+  });
+
+  if (currentView === "dotacion") {
+    return <DotacionView onBack={() => setCurrentView("dashboard")} />;
+  }
+
+  if (currentView === "perfil") {
+    return <UserProfile onBack={() => setCurrentView("dashboard")} />;
+  }
+
+  const handleCreateIncident = () => {
+    if (!newIncident.code.trim() || !newIncident.address.trim()) return;
+
+    setIncidentsList((prev) => [
+      {
+        code: newIncident.code,
+        title: newIncident.title || "Emergencia despachada",
+        address: newIncident.address,
+        time: newIncident.time,
+        unit: newIncident.unit,
+        level: "En operación",
+        tone: "critical",
+      },
+      ...prev,
+    ]);
+
+    setShowNewIncident(false);
+    setNotice("Emergencia registrada e ingresada al historial");
+
+    setNewIncident({
+      code: "",
+      title: "",
+      address: "",
+      unit: "B-10",
+      date: new Date().toISOString().split("T")[0],
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    });
+  };
+
+  const handleAddInventory = () => {
+    if (!newItem.name.trim()) return;
+
+    const added: InventoryItem = {
+      id: `EQ-0${inventoryList.length + 1}`,
+      ...newItem,
+    };
+
+    setInventoryList([added, ...inventoryList]);
+    setShowAddInventory(false);
+    setNotice("Recurso añadido al inventario");
+    setNewItem({ name: "", category: "Vehículo", type: "", status: "Disponible", location: "Cuartel Central" });
+  };
+
+  const filteredInventory = inventoryList.filter((item) => {
+    if (filterStatus === "todos") return true;
+    return item.status.toLowerCase() === filterStatus.toLowerCase();
+  });
 
   const askAi = (prompt?: string) => {
     const next = prompt || query.trim();
@@ -299,7 +385,13 @@ export default function App() {
             <Icon name="bell" />
             <span className="notification-dot" />
           </Button>
-          <div className="user-profile">
+          <div 
+            className="user-profile" 
+            onClick={() => setCurrentView("perfil")}
+            style={{ cursor: "pointer" }}
+            role="button"
+            tabIndex={0}
+          >
             <div className="avatar">AL</div>
             <div className="user-copy">
               <span className="user-name">Alejandro León</span>
@@ -369,7 +461,8 @@ export default function App() {
           </div>
         </div>
 
-        <div className="content-grid">
+        <div className="content-grid" style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+          {/* 1. GESTIÓN DE EMERGENCIAS */}
           <Panel className="incidents-panel">
             <SectionHeader
               action={
@@ -385,8 +478,8 @@ export default function App() {
               <span>INCIDENTE / UBICACIÓN</span><span>DESPACHO</span><span>UNIDAD</span><span>ESTADO</span>
             </div>
             <div className="incident-list">
-              {incidents.map((incident) => (
-                <div className="incident-row" key={incident.code}>
+              {incidentsList.map((incident) => (
+                <div className="incident-row" key={`${incident.code}-${incident.time}`}>
                   <div className="incident-main">
                     <span className={`incident-mark ${incident.tone}`}><Icon name="alert" size={16} /></span>
                     <div>
@@ -408,39 +501,126 @@ export default function App() {
             </Button>
           </Panel>
 
+          {/* 2. UBICACIÓN DE FLOTA Y EQUIPAMIENTO (CON MAPA A LA IZQUIERDA) */}
           <Panel className="fleet-panel">
             <SectionHeader
               action={<span className="summary-tag"><span /> 4 de 5 operativas</span>}
               icon="truck"
-              title="Flota y equipamiento"
+              title="Ubicación de Flota y Equipamiento"
             />
-            <div className="fleet-list">
-              <div className="vehicle-card">
-                <div className="vehicle-visual"><Icon name="truck" size={36} /><span>B-10</span></div>
-                <div className="vehicle-copy"><strong>Bomba B-10</strong><span>Carro bomba · 4.000 L</span></div>
-                <div className="fleet-status"><span className="status-pill stable"><span />Operativo</span><small>Combustible 92%</small></div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem", marginTop: "1rem" }}>
+              <div>
+                <FleetMap />
               </div>
-              <div className="vehicle-card">
-                <div className="vehicle-visual"><Icon name="truck" size={36} /><span>RX-10</span></div>
-                <div className="vehicle-copy"><strong>Rescate RX-10</strong><span>Rescate pesado</span></div>
-                <div className="fleet-status"><span className="status-pill stable"><span />Operativo</span><small>Combustible 78%</small></div>
-              </div>
-              <div className="equipment-card">
-                <div className="equipment-icon"><Icon name="shield" /></div>
-                <div><strong>Equipos ERA</strong><span>14 unidades disponibles</span></div>
-                <span className="status-pill warning"><span />2 en mantención</span>
-              </div>
-              <div className="equipment-card">
-                <div className="equipment-icon"><Icon name="helmet" /></div>
-                <div><strong>Trajes estructurales</strong><span>21 equipos registrados</span></div>
-                <span className="status-pill critical"><span />1 fuera de servicio</span>
+
+              <div className="fleet-list">
+                <div className="vehicle-card">
+                  <div className="vehicle-visual"><Icon name="truck" size={36} /><span>B-10</span></div>
+                  <div className="vehicle-copy"><strong>Bomba B-10</strong><span>Carro bomba · 4.000 L</span></div>
+                  <div className="fleet-status"><span className="status-pill stable"><span />Operativo</span><small>Combustible 92%</small></div>
+                </div>
+
+                <div className="vehicle-card">
+                  <div className="vehicle-visual"><Icon name="truck" size={36} /><span>RX-10</span></div>
+                  <div className="vehicle-copy"><strong>Rescate RX-10</strong><span>Rescate pesado</span></div>
+                  <div className="fleet-status"><span className="status-pill stable"><span />Operativo</span><small>Combustible 78%</small></div>
+                </div>
+
+                <div className="equipment-card">
+                  <div className="equipment-icon"><Icon name="shield" /></div>
+                  <div><strong>Equipos ERA</strong><span>14 unidades disponibles</span></div>
+                  <span className="status-pill warning"><span />2 en mantención</span>
+                </div>
+
+                <div className="equipment-card">
+                  <div className="equipment-icon"><Icon name="helmet" /></div>
+                  <div><strong>Trajes estructurales</strong><span>21 equipos registrados</span></div>
+                  <span className="status-pill critical"><span />1 fuera de servicio</span>
+                </div>
               </div>
             </div>
           </Panel>
 
+          {/* 3. INVENTARIO DE EQUIPOS Y VEHÍCULOS */}
+          <Panel className="inventory-panel">
+            <div className="section-header" style={{ marginBottom: "1rem" }}>
+              <div className="section-title-wrap">
+                <span className="section-icon"><Icon name="shield" /></span>
+                <div>
+                  <div className="eyebrow">CONTROL DE RECURSOS</div>
+                  <div className="section-title">Inventario de Equipos y Vehículos</div>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  style={{
+                    background: "#161b22",
+                    color: "#c9d1d9",
+                    border: "1px solid #30363d",
+                    borderRadius: "6px",
+                    padding: "0.4rem 0.8rem",
+                    fontSize: "0.85rem",
+                    cursor: "pointer",
+                  }}
+                >
+                  <option value="todos">Todos los estados</option>
+                  <option value="disponible">Disponibles</option>
+                  <option value="en servicio">En servicio</option>
+                  <option value="mantenimiento">Mantenimiento</option>
+                  <option value="fuera de servicio">Fuera de servicio</option>
+                </select>
+
+                <Button className="primary-button" onClick={() => setShowAddInventory(true)}>
+                  <Icon name="plus" size={16} /> Registrar equipo
+                </Button>
+              </div>
+            </div>
+
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.9rem" }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid #30363d", color: "#8b949e", fontSize: "0.8rem" }}>
+                    <th style={{ padding: "0.75rem" }}>CÓDIGO</th>
+                    <th style={{ padding: "0.75rem" }}>NOMBRE / RECURSO</th>
+                    <th style={{ padding: "0.75rem" }}>CATEGORÍA</th>
+                    <th style={{ padding: "0.75rem" }}>TIPO / ESPECIFICACIÓN</th>
+                    <th style={{ padding: "0.75rem" }}>UBICACIÓN</th>
+                    <th style={{ padding: "0.75rem" }}>ESTADO / DISPONIBILIDAD</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredInventory.map((item) => (
+                    <tr key={item.id} style={{ borderBottom: "1px solid #21262d" }}>
+                      <td style={{ padding: "0.75rem", fontWeight: 700, color: "#eab308" }}>{item.id}</td>
+                      <td style={{ padding: "0.75rem", fontWeight: 600, color: "#f0f6fc" }}>{item.name}</td>
+                      <td style={{ padding: "0.75rem", color: "#8b949e" }}>{item.category}</td>
+                      <td style={{ padding: "0.75rem", color: "#c9d1d9" }}>{item.type}</td>
+                      <td style={{ padding: "0.75rem", color: "#8b949e" }}>{item.location}</td>
+                      <td style={{ padding: "0.75rem" }}>
+                        <span className={`status-pill ${item.status === 'Disponible' ? 'stable' : item.status === 'Fuera de servicio' ? 'critical' : 'warning'}`}>
+                          <span />
+                          {item.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
+
+          {/* 4. PERSONAL Y GUARDIA */}
           <Panel className="personnel-panel">
             <SectionHeader
-              action={<Button className="text-button">Ver dotación <Icon name="arrow" size={14} /></Button>}
+              action={
+                <Button className="text-button" onClick={() => setCurrentView("dotacion")}>
+                  Ver dotación <Icon name="arrow" size={14} />
+                </Button>
+              }
               eyebrow="TURNO A · 08:00 — 20:00"
               icon="users"
               title="Personal y guardia"
@@ -470,18 +650,130 @@ export default function App() {
         </div>
       </main>
 
+      {/* MODAL REGISTRAR EMERGENCIA */}
       {showNewIncident && (
         <div className="modal-backdrop" onMouseDown={() => setShowNewIncident(false)}>
           <section className="modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="modal-icon"><Icon name="alert" size={24} /></div>
             <div className="modal-title">Registrar emergencia</div>
             <div className="modal-copy">Inicia un nuevo despacho operativo y alerta a la central.</div>
-            <label>CLAVE DE EMERGENCIA<input autoFocus placeholder="Ej. 10-0-1" /></label>
-            <label>UBICACIÓN<input placeholder="Dirección o referencia" /></label>
+            
+            <label>
+              CLAVE DE EMERGENCIA
+              <input 
+                autoFocus 
+                placeholder="Ej. 10-0-1" 
+                value={newIncident.code}
+                onChange={(e) => setNewIncident({ ...newIncident, code: e.target.value })}
+              />
+            </label>
+
+            <label>
+              TÍTULO / TIPO DE INCIDENTE
+              <input 
+                placeholder="Ej. Fuego estructural" 
+                value={newIncident.title}
+                onChange={(e) => setNewIncident({ ...newIncident, title: e.target.value })}
+              />
+            </label>
+
+            <label>
+              UBICACIÓN
+              <input 
+                placeholder="Dirección o referencia" 
+                value={newIncident.address}
+                onChange={(e) => setNewIncident({ ...newIncident, address: e.target.value })}
+              />
+            </label>
+
+            <label>
+              UNIDAD ASIGNADA
+              <input 
+                placeholder="Ej. B-10" 
+                value={newIncident.unit}
+                onChange={(e) => setNewIncident({ ...newIncident, unit: e.target.value })}
+              />
+            </label>
+
             <div className="modal-actions">
               <Button className="secondary-button" onClick={() => setShowNewIncident(false)}>Cancelar</Button>
-              <Button className="primary-button" onClick={() => { setShowNewIncident(false); setNotice("Emergencia registrada y central alertada"); }}>
+              <Button className="primary-button" onClick={handleCreateIncident}>
                 <Icon name="radio" size={16} /> Activar despacho
+              </Button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* MODAL REGISTRAR INVENTARIO */}
+      {showAddInventory && (
+        <div className="modal-backdrop" onMouseDown={() => setShowAddInventory(false)}>
+          <section className="modal" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="modal-title">Registrar nuevo recurso</div>
+            <div className="modal-copy">Ingresa un nuevo equipo o vehículo al inventario operativo.</div>
+
+            <label>
+              NOMBRE DEL EQUIPO O VEHÍCULO
+              <input
+                autoFocus
+                placeholder="Ej. Carro Aljibes Z-10"
+                value={newItem.name}
+                onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+              />
+            </label>
+
+            <label>
+              CATEGORÍA
+              <select
+                value={newItem.category}
+                onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
+                style={{ width: "100%", padding: "0.6rem", background: "#0d1117", border: "1px solid #30363d", color: "#fff", borderRadius: "6px" }}
+              >
+                <option value="Vehículo">Vehículo</option>
+                <option value="Equipamiento">Equipamiento ERA / Rescate</option>
+                <option value="EPI">EPI (Protección Personal)</option>
+                <option value="Comunicaciones">Comunicaciones / Radio</option>
+              </select>
+            </label>
+
+            <label>
+              DESCRIPCIÓN / TIPO
+              <input
+                placeholder="Ej. Cisterna 10.000L"
+                value={newItem.type}
+                onChange={(e) => setNewItem({ ...newItem, type: e.target.value })}
+              />
+            </label>
+
+            <label>
+              UBICACIÓN
+              <input
+                placeholder="Ej. Cuartel Central"
+                value={newItem.location}
+                onChange={(e) => setNewItem({ ...newItem, location: e.target.value })}
+              />
+            </label>
+
+            <label>
+              ESTADO INICIAL
+              <select
+                value={newItem.status}
+                onChange={(e) => setNewItem({ ...newItem, status: e.target.value })}
+                style={{ width: "100%", padding: "0.6rem", background: "#0d1117", border: "1px solid #30363d", color: "#fff", borderRadius: "6px" }}
+              >
+                <option value="Disponible">Disponible</option>
+                <option value="En servicio">En servicio</option>
+                <option value="Mantenimiento">Mantenimiento</option>
+                <option value="Fuera de servicio">Fuera de servicio</option>
+              </select>
+            </label>
+
+            <div className="modal-actions">
+              <Button className="secondary-button" onClick={() => setShowAddInventory(false)}>
+                Cancelar
+              </Button>
+              <Button className="primary-button" onClick={handleAddInventory}>
+                Guardar en inventario
               </Button>
             </div>
           </section>

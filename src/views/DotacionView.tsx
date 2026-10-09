@@ -2,52 +2,135 @@ import { useState, type FormEvent } from "react";
 import { Emblem, Icon } from "../components/Icon";
 import { initialFirefighters } from "../data/mocks";
 import type { Firefighter } from "../types";
+import { useAuth } from "../hooks/useAuth";
+import { ApiError } from "../lib/api";
+import { isValidRut, normalizeRut } from "../utils/rut";
+
+// Reglas y nivel de fuerza para contraseñas 
+const passwordRules: { label: string; test: (value: string) => boolean }[] = [
+  { label: "Mínimo 8 caracteres", test: (v) => v.length >= 8 },
+  { label: "Una letra mayúscula", test: (v) => /[A-Z]/.test(v) },
+  { label: "Una letra minúscula", test: (v) => /[a-z]/.test(v) },
+  { label: "Un número", test: (v) => /\d/.test(v) },
+  { label: "Un carácter especial", test: (v) => /[^A-Za-z0-9]/.test(v) },
+];
+
+function strengthOf(value: string): { score: number; label: string; level: "weak" | "medium" | "strong" } {
+  const score = passwordRules.filter((rule) => rule.test(value)).length;
+  if (score <= 2) return { score, label: "Débil", level: "weak" };
+  if (score <= 4) return { score, label: "Media", level: "medium" };
+  return { score, label: "Fuerte", level: "strong" };
+}
+
+const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function DotacionView({ onBack }: { onBack: () => void }) {
+  const { session, register } = useAuth();
+
+  const currentUser = session?.user;
+  const userRole = currentUser?.rol?.toUpperCase() || "";
+  const isAuthorized = userRole === "CAPITAN" || userRole === "ADMINISTRATIVO" || userRole === "CAPITÁN";
+
   const [list, setList] = useState<Firefighter[]>(initialFirefighters);
   const [search, setSearch] = useState("");
   const [filterShift, setFilterShift] = useState("Todos");
   const [showModal, setShowModal] = useState(false);
   const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
+  //Formulario con campos completos de usuario
   const [form, setForm] = useState({
-    name: "",
+    rut: "",
+    nombre: "",
+    apellido: "",
+    email: "",
+    password: "",
+    confirm: "",
     role: "Voluntario",
     shift: "Turno A (Diurno)",
     certifications: "",
     status: "Disponible",
   });
 
-  const handleAdd = (e: FormEvent) => {
+  //Validadores de contraseña y formulario
+  const strength = strengthOf(form.password);
+  const rulesPass = passwordRules.every((rule) => rule.test(form.password));
+  const confirmOk = form.confirm.length > 0 && form.confirm === form.password;
+  
+  const isFormValid =
+    form.rut.trim() !== "" &&
+    isValidRut(form.rut) &&
+    form.nombre.trim() !== "" &&
+    form.apellido.trim() !== "" &&
+    emailRe.test(form.email) &&
+    rulesPass &&
+    confirmOk;
+
+  //Manejo del registro completo conectando backend (register) y lista local
+  const handleAdd = async (e: FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim()) return;
+    setError("");
 
-    const certsArray = form.certifications
-      .split(",")
-      .map((c) => c.trim())
-      .filter((c) => c.length > 0);
+    if (!isFormValid) {
+      if (!isValidRut(form.rut)) setError("El RUT ingresado no es válido (ej: 12345678-9).");
+      else setError("Revisa que los campos obligatorios, la contraseña segura y la confirmación coincidan.");
+      return;
+    }
 
-    const newMember: Firefighter = {
-      id: Date.now().toString(),
-      name: form.name.trim(),
-      role: form.role as Firefighter["role"],
-      shift: form.shift as Firefighter["shift"],
-      certifications: certsArray.length > 0 ? certsArray : ["Estructural Base"],
-      status: form.status as Firefighter["status"],
-    };
+    setSubmitting(true);
 
-    setList([newMember, ...list]);
-    setShowModal(false);
-    setForm({
-      name: "",
-      role: "Voluntario",
-      shift: "Turno A (Diurno)",
-      certifications: "",
-      status: "Disponible",
-    });
+    try {
+      // 1. Invocar registro en la API Backend
+      await register({
+        rut: normalizeRut(form.rut),
+        nombre: form.nombre.trim(),
+        apellido: form.apellido.trim(),
+        email: form.email.trim(),
+        password: form.password,
+      });
 
-    setNotice(`Bombero(a) ${newMember.name} ingresado(a) correctamente`);
-    setTimeout(() => setNotice(""), 3000);
+      // 2. Agregar a la lista local visible en pantalla
+      const certsArray = form.certifications
+        .split(",")
+        .map((c) => c.trim())
+        .filter((c) => c.length > 0);
+
+      const fullName = `${form.nombre.trim()} ${form.apellido.trim()}`;
+
+      const newMember: Firefighter = {
+        id: Date.now().toString(),
+        name: fullName,
+        role: form.role as Firefighter["role"],
+        shift: form.shift as Firefighter["shift"],
+        certifications: certsArray.length > 0 ? certsArray : ["Estructural Base"],
+        status: form.status as Firefighter["status"],
+      };
+
+      setList([newMember, ...list]);
+      setShowModal(false);
+      setNotice(`Bombero(a) ${fullName} registrado(a) e ingresado(a) correctamente`);
+
+      // Limpiar formulario
+      setForm({
+        rut: "",
+        nombre: "",
+        apellido: "",
+        email: "",
+        password: "",
+        confirm: "",
+        role: "Voluntario",
+        shift: "Turno A (Diurno)",
+        certifications: "",
+        status: "Disponible",
+      });
+
+      setTimeout(() => setNotice(""), 3500);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Error al registrar bombero en la base de datos.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const filtered = list.filter((item) => {
@@ -97,27 +180,32 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
             </div>
           </div>
 
-          <button
-            className="primary-button"
-            onClick={() => setShowModal(true)}
-            style={{
-              backgroundColor: "#e53e3e",
-              color: "#ffffff",
-              border: "none",
-              padding: "0.7rem 1.2rem",
-              borderRadius: "0.5rem",
-              fontWeight: 600,
-              fontSize: "0.9rem",
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              boxShadow: "0 4px 12px rgba(229, 62, 62, 0.25)",
-            }}
-          >
-            <Icon name="plus" size={16} />
-            <span>Agregar Bombero</span>
-          </button>
+          {isAuthorized && (
+            <button
+              className="primary-button"
+              onClick={() => {
+                setError("");
+                setShowModal(true);
+              }}
+              style={{
+                backgroundColor: "#e53e3e",
+                color: "#ffffff",
+                border: "none",
+                padding: "0.7rem 1.2rem",
+                borderRadius: "0.5rem",
+                fontWeight: 600,
+                fontSize: "0.9rem",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                boxShadow: "0 4px 12px rgba(229, 62, 62, 0.25)",
+              }}
+            >
+              <Icon name="plus" size={16} />
+              <span>Agregar Bombero</span>
+            </button>
+          )}
         </div>
 
         {/* Barra de Filtro y Búsqueda */}
@@ -274,8 +362,8 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
         </div>
       </main>
 
-      {/* Modal para Agregar Nuevo Bombero */}
-      {showModal && (
+      {/*Modal para Agregar nuevo Bombero*/}
+      {showModal && isAuthorized && (
         <div
           style={{
             position: "fixed",
@@ -287,6 +375,7 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
             justifyContent: "center",
             zIndex: 100,
             padding: "1rem",
+            overflowY: "auto",
           }}
           onClick={() => setShowModal(false)}
         >
@@ -295,8 +384,10 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
               backgroundColor: "#161b22",
               borderRadius: "0.75rem",
               padding: "1.75rem",
-              maxWidth: "480px",
+              maxWidth: "520px",
               width: "100%",
+              maxHeight: "90vh",
+              overflowY: "auto",
               border: "1px solid #30363d",
               boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.5)",
             }}
@@ -317,30 +408,114 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
               </button>
             </div>
 
-            <form onSubmit={handleAdd} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <div>
-                <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "#8b949e", marginBottom: "0.35rem" }}>
-                  NOMBRE COMPLETO
-                </label>
-                <input
-                  required
-                  type="text"
-                  placeholder="Ej. Constanza Morales"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  style={{
-                    width: "100%",
-                    padding: "0.6rem 0.8rem",
-                    borderRadius: "0.375rem",
-                    border: "1px solid #30363d",
-                    backgroundColor: "#0d1117",
-                    color: "#f0f6fc",
-                    fontSize: "0.875rem",
-                    outline: "none",
-                  }}
-                />
+            {/* Alerta de Error */}
+            {error && (
+              <div className="auth-alert error" style={{ marginBottom: "1rem" }}>
+                <Icon name="close" size={15} /> {error}
+              </div>
+            )}
+
+            <form onSubmit={handleAdd} style={{ display: "flex", flexDirection: "column", gap: "1rem" }} noValidate>
+              
+              {/* RUT Y CORREO */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "#8b949e", marginBottom: "0.35rem" }}>
+                    RUT
+                  </label>
+                  <input
+                    required
+                    type="text"
+                    placeholder="12345678-9"
+                    value={form.rut}
+                    onChange={(e) => setForm({ ...form, rut: e.target.value })}
+                    style={{
+                      width: "100%",
+                      padding: "0.6rem 0.8rem",
+                      borderRadius: "0.375rem",
+                      border: "1px solid #30363d",
+                      backgroundColor: "#0d1117",
+                      color: "#f0f6fc",
+                      fontSize: "0.875rem",
+                      outline: "none",
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "#8b949e", marginBottom: "0.35rem" }}>
+                    CORREO
+                  </label>
+                  <input
+                    required
+                    type="email"
+                    placeholder="nombre@bomba10.cl"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    style={{
+                      width: "100%",
+                      padding: "0.6rem 0.8rem",
+                      borderRadius: "0.375rem",
+                      border: "1px solid #30363d",
+                      backgroundColor: "#0d1117",
+                      color: "#f0f6fc",
+                      fontSize: "0.875rem",
+                      outline: "none",
+                    }}
+                  />
+                </div>
               </div>
 
+              {/* NOMBRE Y APELLIDO */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "#8b949e", marginBottom: "0.35rem" }}>
+                    NOMBRE
+                  </label>
+                  <input
+                    required
+                    type="text"
+                    placeholder="Ej. Pepe"
+                    value={form.nombre}
+                    onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+                    style={{
+                      width: "100%",
+                      padding: "0.6rem 0.8rem",
+                      borderRadius: "0.375rem",
+                      border: "1px solid #30363d",
+                      backgroundColor: "#0d1117",
+                      color: "#f0f6fc",
+                      fontSize: "0.875rem",
+                      outline: "none",
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "#8b949e", marginBottom: "0.35rem" }}>
+                    APELLIDO
+                  </label>
+                  <input
+                    required
+                    type="text"
+                    placeholder="Ej. Fuego"
+                    value={form.apellido}
+                    onChange={(e) => setForm({ ...form, apellido: e.target.value })}
+                    style={{
+                      width: "100%",
+                      padding: "0.6rem 0.8rem",
+                      borderRadius: "0.375rem",
+                      border: "1px solid #30363d",
+                      backgroundColor: "#0d1117",
+                      color: "#f0f6fc",
+                      fontSize: "0.875rem",
+                      outline: "none",
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* CARGO Y TURNO */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "#8b949e", marginBottom: "0.35rem" }}>
@@ -394,6 +569,79 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
                 </div>
               </div>
 
+              {/* CONTRASEÑA SEGURA */}
+              <div>
+                <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "#8b949e", marginBottom: "0.35rem" }}>
+                  CONTRASEÑA SEGURA
+                </label>
+                <input
+                  required
+                  type="password"
+                  placeholder="Mín. 8, A-Z, a-z, 0-9 y especial"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  style={{
+                    width: "100%",
+                    padding: "0.6rem 0.8rem",
+                    borderRadius: "0.375rem",
+                    border: "1px solid #30363d",
+                    backgroundColor: "#0d1117",
+                    color: "#f0f6fc",
+                    fontSize: "0.875rem",
+                    outline: "none",
+                  }}
+                />
+              </div>
+
+              {/* BARRA Y REGLAS DE FORTALEZA DE CONTRASEÑA */}
+              {form.password.length > 0 && (
+                <div className="strength-block">
+                  <div className="strength-track" role="meter" aria-label="Fortaleza de la contraseña" aria-valuenow={strength.score} aria-valuemin={0} aria-valuemax={5}>
+                    <div className={`strength-fill ${strength.level}`} style={{ width: `${(strength.score / 5) * 100}%` }} />
+                  </div>
+                  <span className={`strength-label ${strength.level}`}>{strength.label}</span>
+                  <ul className="rule-check">
+                    {passwordRules.map((rule) => (
+                      <li key={rule.label} className={rule.test(form.password) ? "pass" : "fail"}>
+                        <Icon name={rule.test(form.password) ? "check" : "close"} size={13} />
+                        {rule.label}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* CONFIRMAR CONTRASEÑA */}
+              <div>
+                <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "#8b949e", marginBottom: "0.35rem" }}>
+                  CONFIRMAR CONTRASEÑA
+                </label>
+                <input
+                  required
+                  type="password"
+                  placeholder="Repite la contraseña"
+                  value={form.confirm}
+                  onChange={(e) => setForm({ ...form, confirm: e.target.value })}
+                  style={{
+                    width: "100%",
+                    padding: "0.6rem 0.8rem",
+                    borderRadius: "0.375rem",
+                    border: "1px solid #30363d",
+                    backgroundColor: "#0d1117",
+                    color: "#f0f6fc",
+                    fontSize: "0.875rem",
+                    outline: "none",
+                  }}
+                />
+              </div>
+              {form.confirm.length > 0 && (
+                <div className={`confirm-line ${confirmOk ? "pass" : "fail"}`}>
+                  <Icon name={confirmOk ? "check" : "close"} size={13} />
+                  {confirmOk ? "Las contraseñas coinciden" : "Las contraseñas no coinciden"}
+                </div>
+              )}
+
+              {/* CERTIFICACIONES */}
               <div>
                 <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "#8b949e", marginBottom: "0.35rem" }}>
                   CERTIFICACIONES (Separadas por coma)
@@ -416,6 +664,7 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
                 />
               </div>
 
+              {/* ESTADO INICIAL */}
               <div>
                 <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "#8b949e", marginBottom: "0.35rem" }}>
                   ESTADO INICIAL
@@ -440,6 +689,7 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
                 </select>
               </div>
 
+              {/* BOTONES DE ACCIÓN */}
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1rem" }}>
                 <button
                   type="button"
@@ -458,6 +708,7 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
                 </button>
                 <button
                   type="submit"
+                  disabled={submitting || !isFormValid}
                   style={{
                     padding: "0.6rem 1.25rem",
                     borderRadius: "0.375rem",
@@ -467,9 +718,10 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
                     fontWeight: 600,
                     cursor: "pointer",
                     fontSize: "0.875rem",
+                    opacity: submitting || !isFormValid ? 0.6 : 1,
                   }}
                 >
-                  Guardar
+                  {submitting ? "Registrando..." : "Guardar Bombero"}
                 </button>
               </div>
             </form>

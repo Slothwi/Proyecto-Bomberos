@@ -1,119 +1,7 @@
-import { FormEvent, ReactNode, useState } from "react";
-import companyLogo from "./assets/logo-bomberos.png";
-
-export interface Firefighter {
-  id: string;
-  name: string;
-  role: "Capitán" | "Teniente 1°" | "Teniente 2°" | "Maquinista" | "Voluntario";
-  shift: "Turno A (Diurno)" | "Turno B (Nocturno)" | "Guardia Nocturna" | "Franco";
-  certifications: string[];
-  status: "Disponible" | "En Servicio" | "Licencia";
-}
-
-const initialFirefighters: Firefighter[] = [
-  {
-    id: "1",
-    name: "Felipe Muñoz",
-    role: "Teniente 1°",
-    shift: "Turno A (Diurno)",
-    certifications: ["Rescate Urbano", "Mando", "APH"],
-    status: "Disponible",
-  },
-  {
-    id: "2",
-    name: "Catalina Vera",
-    role: "Maquinista",
-    shift: "Turno A (Diurno)",
-    certifications: ["Operador B-10", "HazMat Level II"],
-    status: "Disponible",
-  },
-  {
-    id: "3",
-    name: "Javier Rojas",
-    role: "Voluntario",
-    shift: "Guardia Nocturna",
-    certifications: ["Rescate Urbano"],
-    status: "En Servicio",
-  },
-  {
-    id: "4",
-    name: "Antonia Silva",
-    role: "Voluntario",
-    shift: "Turno B (Nocturno)",
-    certifications: ["APH", "HazMat"],
-    status: "Disponible",
-  },
-];
-
-type IconName = "plus" | "search" | "users" | "check" | "close" | "arrow" | "shield";
-
-function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
-  const paths: Record<IconName, ReactNode> = {
-    plus: <path d="M12 5v14M5 12h14" />,
-    search: (
-      <>
-        <circle cx="11" cy="11" r="7" />
-        <path d="m20 20-4-4" />
-      </>
-    ),
-    users: (
-      <>
-        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8" />
-      </>
-    ),
-    check: <path d="m5 12 4 4L19 6" />,
-    close: <path d="m6 6 12 12M18 6 6 18" />,
-    arrow: <path d="m15 18-6-6 6-6" />,
-    shield: <path d="M12 22S20 18 20 11V5l-8-3-8 3v6c0 7 8 11 8 11Z" />,
-  };
-
-  return (
-    <svg
-      aria-hidden="true"
-      fill="none"
-      height={size}
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-      width={size}
-    >
-      {paths[name]}
-    </svg>
-  );
-}
-
-function Emblem() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="watermark"
-      viewBox="0 0 500 500"
-    >
-      <defs>
-        <filter id="remove-white-watermark" colorInterpolationFilters="sRGB">
-          <feColorMatrix
-            type="matrix"
-            values="1 0 0 0 0
-                    0 1 0 0 0
-                    0 0 1 0 0
-                   -1 -1 -1 0 3"
-          />
-        </filter>
-      </defs>
-      <image
-        filter="url(#remove-white-watermark)"
-        height="500"
-        href={companyLogo}
-        preserveAspectRatio="xMidYMid meet"
-        width="500"
-      />
-    </svg>
-  );
-}
+import { useState, type FormEvent } from "react";
+import { Emblem, Icon } from "../components/Icon";
+import { initialFirefighters } from "../data/mocks";
+import type { Firefighter } from "../types";
 
 export default function DotacionView({ onBack }: { onBack: () => void }) {
   const [list, setList] = useState<Firefighter[]>(initialFirefighters);
@@ -142,10 +30,10 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
     const newMember: Firefighter = {
       id: Date.now().toString(),
       name: form.name.trim(),
-      role: form.role as any,
-      shift: form.shift as any,
+      role: form.role as Firefighter["role"],
+      shift: form.shift as Firefighter["shift"],
       certifications: certsArray.length > 0 ? certsArray : ["Estructural Base"],
-      status: form.status as any,
+      status: form.status as Firefighter["status"],
     };
 
     setList([newMember, ...list]);

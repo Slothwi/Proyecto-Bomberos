@@ -1,13 +1,5 @@
 import { useState } from "react";
-
-interface InventoryItem {
-  id: string;
-  name: string;
-  category: string;
-  type: string;
-  status: string;
-  location: string;
-}
+import type { InventoryItem } from "../types";
 
 export default function InventoryPanel({ initialData }: { initialData: InventoryItem[] }) {
   const [items, setItems] = useState<InventoryItem[]>(initialData);

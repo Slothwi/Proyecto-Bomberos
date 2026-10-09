@@ -1,7 +1,7 @@
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import truckImg from "./assets/bombero.png";
+import truckImg from "../assets/bombero.png";
 
 // Ícono personalizado con la imagen del carro de bomberos
 const fireTruckIcon = L.icon({

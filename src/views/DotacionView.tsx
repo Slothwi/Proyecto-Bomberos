@@ -39,7 +39,7 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  //Formulario con campos completos de usuario
+  // Formulario con campos completos de usuario
   const [form, setForm] = useState({
     rut: "",
     nombre: "",
@@ -53,7 +53,7 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
     status: "Disponible",
   });
 
-  //Validadores de contraseña y formulario
+  // Validadores de contraseña y formulario
   const strength = strengthOf(form.password);
   const rulesPass = passwordRules.every((rule) => rule.test(form.password));
   const confirmOk = form.confirm.length > 0 && form.confirm === form.password;
@@ -67,7 +67,7 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
     rulesPass &&
     confirmOk;
 
-  //Manejo del registro completo conectando backend (register) y lista local
+  // Manejo del registro completo conectando backend (register) y lista local
   const handleAdd = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
@@ -81,13 +81,14 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
     setSubmitting(true);
 
     try {
-      // 1. Invocar registro en la API Backend
+      // 1. Invocar registro en la API Backend (enviando el rol seleccionado)
       await register({
         rut: normalizeRut(form.rut),
         nombre: form.nombre.trim(),
         apellido: form.apellido.trim(),
         email: form.email.trim(),
         password: form.password,
+        rol: form.role,
       });
 
       // 2. Agregar a la lista local visible en pantalla
@@ -362,7 +363,7 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
         </div>
       </main>
 
-      {/*Modal para Agregar nuevo Bombero*/}
+      {/* Modal para Agregar nuevo Bombero */}
       {showModal && isAuthorized && (
         <div
           style={{

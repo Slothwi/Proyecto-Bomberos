@@ -28,8 +28,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`${API_URL}${path}`, {
-      headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
       ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(init.headers ?? {}),
+      },
     });
   } catch {
     throw new ApiError("No hay conexión con el servidor. Verifica que el backend esté en marcha.", 0);
@@ -48,10 +51,19 @@ export interface RegisterPayload {
   apellido: string;
   email: string;
   password: string;
+  rol?: string;
 }
 
 export async function register(payload: RegisterPayload): Promise<{ message: string; user: SessionUser }> {
-  return request("/auth/register", { method: "POST", body: JSON.stringify(payload) });
+  const token = localStorage.getItem(TOKEN_KEY);
+
+  return request("/auth/register", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token ?? ""}`,
+    },
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function login(email: string, password: string): Promise<Session> {
@@ -87,7 +99,11 @@ export function logout(): void {
 export async function fetchWithAuth(path: string, init: RequestInit = {}): Promise<Response> {
   const token = localStorage.getItem(TOKEN_KEY);
   return fetch(`${API_URL}${path}`, {
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}`, ...(init.headers ?? {}) },
     ...init,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token ?? ""}`,
+      ...(init.headers ?? {}),
+    },
   });
 }

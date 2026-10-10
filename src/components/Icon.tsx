@@ -14,11 +14,13 @@ export type IconName =
   | "location"
   | "lock"
   | "menu"
+  | "moon"
   | "plus"
   | "radio"
   | "search"
   | "shield"
   | "spark"
+  | "sun"
   | "truck"
   | "users";
 
@@ -74,6 +76,7 @@ export function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
       </>
     ),
     menu: <path d="M4 7h16M4 12h16M4 17h16" />,
+    moon: <path d="M20.5 15.3A8.5 8.5 0 0 1 8.7 3.5 8.5 8.5 0 1 0 20.5 15.3Z" />,
     plus: <path d="M12 5v14M5 12h14" />,
     radio: (
       <>
@@ -90,6 +93,12 @@ export function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
     shield: <path d="M12 22S20 18 20 11V5l-8-3-8 3v6c0 7 8 11 8 11Z" />,
     spark: (
       <path d="m12 3-1.1 4.2A5.2 5.2 0 0 1 7.2 11L3 12l4.2 1.1a5.2 5.2 0 0 1 3.7 3.7L12 21l1.1-4.2a5.2 5.2 0 0 1 3.7-3.7L21 12l-4.2-1a5.2 5.2 0 0 1-3.7-3.8Z" />
+    ),
+    sun: (
+      <>
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42" />
+      </>
     ),
     truck: (
       <>

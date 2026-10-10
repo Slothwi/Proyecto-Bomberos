@@ -31,9 +31,12 @@ export interface CrewMember {
 
 export interface Firefighter {
   id: string;
+  rut?: string;
+  email?: string;
   name: string;
-  role: "Capitán" | "Teniente 1°" | "Teniente 2°" | "Maquinista" | "Voluntario";
-  shift: "Turno A (Diurno)" | "Turno B (Nocturno)" | "Guardia Nocturna" | "Franco";
+  roleCode?: string;
+  role: string;
+  shift: string;
   certifications: string[];
-  status: "Disponible" | "En Servicio" | "Licencia";
+  status: string;
 }

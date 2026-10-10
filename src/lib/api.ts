@@ -12,6 +12,20 @@ export interface Session {
   user: SessionUser;
 }
 
+export interface UsuarioRow {
+  id: number;
+  rut: string;
+  nombre: string;
+  apellido: string;
+  email: string;
+  rol: string;
+  turno: string | null;
+  certificaciones: string[];
+  estado: string;
+}
+
+export const AUTH_EXPIRED_EVENT = "auth:expired";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000/api";
 const TOKEN_KEY = "bomberos_token";
 const USER_KEY = "bomberos_user";
@@ -40,9 +54,24 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new ApiError(data.message ?? `Error ${response.status}`, response.status);
+    // 401 en rutas protegidas o 403 con "Token inválido o expirado" = sesión muerta.
+    // Un 401 en /auth/login es solo credenciales malas; un 403 de checkRole es falta de permisos (no fuerza logout).
+    const message = typeof data.message === "string" ? data.message : "";
+    const sessionDead =
+      (response.status === 401 && path !== "/auth/login") ||
+      (response.status === 403 && message.includes("Token"));
+    if (sessionDead) {
+      logout();
+      window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+    }
+    throw new ApiError(message || `Error ${response.status}`, response.status);
   }
   return data as T;
+}
+
+function authHeader(): Record<string, string> {
+  const token = localStorage.getItem(TOKEN_KEY);
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 export interface RegisterPayload {
@@ -52,17 +81,35 @@ export interface RegisterPayload {
   email: string;
   password: string;
   rol?: string;
+  turno?: string;
+  certificaciones?: string[];
+  estado?: string;
 }
 
-export async function register(payload: RegisterPayload): Promise<{ message: string; user: SessionUser }> {
-  const token = localStorage.getItem(TOKEN_KEY);
-
+export async function register(payload: RegisterPayload): Promise<{ message: string; user: UsuarioRow }> {
   return request("/auth/register", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${token ?? ""}`,
-    },
+    headers: authHeader(),
     body: JSON.stringify(payload),
+  });
+}
+
+export async function getUsuarios(): Promise<UsuarioRow[]> {
+  return request("/usuarios", { headers: authHeader() });
+}
+
+export async function updateUsuario(id: number, payload: Partial<RegisterPayload>): Promise<{ message: string; user: UsuarioRow }> {
+  return request(`/usuarios/${id}`, {
+    method: "PATCH",
+    headers: authHeader(),
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteUsuario(id: number): Promise<{ message: string }> {
+  return request(`/usuarios/${id}`, {
+    method: "DELETE",
+    headers: authHeader(),
   });
 }
 

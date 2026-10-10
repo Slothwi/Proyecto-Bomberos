@@ -2,6 +2,7 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import truckImg from "../assets/bombero.png";
+import { useTheme } from "../context/ThemeContext";
 
 // Ícono personalizado con la imagen del carro de bomberos
 const fireTruckIcon = L.icon({
@@ -39,6 +40,7 @@ const vehicles = [
 ];
 
 export default function FleetMap() {
+  const { theme } = useTheme();
   const centerPosition: [number, number] = [-33.445, -70.66];
 
   return (
@@ -53,7 +55,7 @@ export default function FleetMap() {
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          className="dark-tiles"
+          className={theme === "dark" ? "dark-tiles" : "light-tiles"}
         />
 
         {vehicles.map((vehicle) => (
@@ -79,6 +81,10 @@ export default function FleetMap() {
       <style>{`
         .dark-tiles {
           filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+        }
+
+        .light-tiles {
+          filter: none;
         }
       `}</style>
     </div>

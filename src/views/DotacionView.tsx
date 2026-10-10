@@ -1,10 +1,25 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Emblem, Icon } from "../components/Icon";
-import { initialFirefighters } from "../data/mocks";
 import type { Firefighter } from "../types";
 import { useAuth } from "../hooks/useAuth";
-import { ApiError } from "../lib/api";
+import { ApiError, deleteUsuario, getUsuarios, updateUsuario, type UsuarioRow } from "../lib/api";
 import { isValidRut, normalizeRut } from "../utils/rut";
+import { rolLabelFor } from "../utils/user";
+import ThemeToggle from "../components/ThemeToggle";
+
+function toFirefighter(u: UsuarioRow): Firefighter {
+  return {
+    id: String(u.id),
+    rut: u.rut,
+    email: u.email,
+    name: `${u.nombre} ${u.apellido}`.trim(),
+    roleCode: u.rol,
+    role: rolLabelFor(u.rol),
+    shift: u.turno ?? "Sin turno",
+    certifications: u.certificaciones,
+    status: u.estado,
+  };
+}
 
 // Reglas y nivel de fuerza para contraseñas 
 const passwordRules: { label: string; test: (value: string) => boolean }[] = [
@@ -31,13 +46,18 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
   const userRole = currentUser?.rol?.toUpperCase() || "";
   const isAuthorized = userRole === "CAPITAN" || userRole === "ADMINISTRATIVO" || userRole === "CAPITÁN";
 
-  const [list, setList] = useState<Firefighter[]>(initialFirefighters);
+  const [list, setList] = useState<Firefighter[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
   const [filterShift, setFilterShift] = useState("Todos");
   const [showModal, setShowModal] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [editing, setEditing] = useState<Firefighter | null>(null);
+  const [editForm, setEditForm] = useState({ nombre: "", apellido: "", email: "", role: "VOLUNTARIO", shift: "", certifications: "", status: "Disponible" });
+  const [editSubmitting, setEditSubmitting] = useState(false);
 
   // Formulario con campos completos de usuario
   const [form, setForm] = useState({
@@ -52,6 +72,27 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
     certifications: "",
     status: "Disponible",
   });
+
+  // La dotación se lee desde la BD (GET /api/usuarios), no de mocks
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    getUsuarios()
+      .then((rows) => {
+        if (!alive) return;
+        setList(rows.map(toFirefighter));
+        setLoadError("");
+      })
+      .catch((err) => {
+        if (alive) setLoadError(err instanceof ApiError ? err.message : "No se pudo cargar la dotación desde el servidor.");
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [session]);
 
   // Validadores de contraseña y formulario
   const strength = strengthOf(form.password);
@@ -81,36 +122,28 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
     setSubmitting(true);
 
     try {
-      // 1. Invocar registro en la API Backend (enviando el rol seleccionado)
-      await register({
+      const certsArray = form.certifications
+        .split(",")
+        .map((c) => c.trim())
+        .filter((c) => c.length > 0);
+
+      // 1. Alta real en el backend con TODOS los campos que soporta el modelo Usuario
+      const { user } = await register({
         rut: normalizeRut(form.rut),
         nombre: form.nombre.trim(),
         apellido: form.apellido.trim(),
         email: form.email.trim(),
         password: form.password,
         rol: form.role,
+        turno: form.shift,
+        certificaciones: certsArray.length > 0 ? certsArray : ["Estructural Base"],
+        estado: form.status,
       });
 
-      // 2. Agregar a la lista local visible en pantalla
-      const certsArray = form.certifications
-        .split(",")
-        .map((c) => c.trim())
-        .filter((c) => c.length > 0);
-
-      const fullName = `${form.nombre.trim()} ${form.apellido.trim()}`;
-
-      const newMember: Firefighter = {
-        id: Date.now().toString(),
-        name: fullName,
-        role: form.role as Firefighter["role"],
-        shift: form.shift as Firefighter["shift"],
-        certifications: certsArray.length > 0 ? certsArray : ["Estructural Base"],
-        status: form.status as Firefighter["status"],
-      };
-
-      setList([newMember, ...list]);
+      // 2. La fila mostrada se construye desde la respuesta del backend (fuente de verdad)
+      setList((prev) => [toFirefighter(user), ...prev]);
       setShowModal(false);
-      setNotice(`Bombero(a) ${fullName} registrado(a) e ingresado(a) correctamente`);
+      setNotice(`Bombero(a) ${user.nombre} ${user.apellido} registrado(a) en la dotación`);
 
       // Limpiar formulario
       setForm({
@@ -142,12 +175,76 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
     return matchesSearch && matchesShift;
   });
 
+  const openEdit = (person: Firefighter) => {
+    const [nombre, ...apellidoParts] = person.name.split(" ");
+    setEditing(person);
+    setEditForm({
+      nombre,
+      apellido: apellidoParts.join(" "),
+      email: person.email ?? "",
+      role: person.roleCode ?? "VOLUNTARIO",
+      shift: person.shift === "Sin turno" ? "" : person.shift,
+      certifications: person.certifications.join(", "),
+      status: person.status,
+    });
+    setError("");
+  };
+
+  const handleEdit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!editing) return;
+    setEditSubmitting(true);
+    setError("");
+    try {
+      const { user } = await updateUsuario(Number(editing.id), {
+        nombre: editForm.nombre.trim(),
+        apellido: editForm.apellido.trim(),
+        email: editForm.email.trim(),
+        rol: editForm.role,
+        turno: editForm.shift.trim(),
+        certificaciones: editForm.certifications.split(",").map((value) => value.trim()).filter(Boolean),
+        estado: editForm.status,
+      });
+      setList((current) => current.map((item) => item.id === editing.id ? toFirefighter(user) : item));
+      setEditing(null);
+      setNotice(`Datos de ${user.nombre} ${user.apellido} actualizados`);
+      setTimeout(() => setNotice(""), 3500);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo actualizar el bombero.");
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!editing) return;
+    const confirmed = window.confirm(
+      `¿Estás seguro de eliminar a ${editing.name} del registro? Esta acción es irreversible y se perderán sus datos.`,
+    );
+    if (!confirmed) return;
+
+    setEditSubmitting(true);
+    setError("");
+    try {
+      await deleteUsuario(Number(editing.id));
+      setList((current) => current.filter((item) => item.id !== editing.id));
+      setEditing(null);
+      setNotice(`${editing.name} fue eliminado del registro`);
+      setTimeout(() => setNotice(""), 3500);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo eliminar el bombero.");
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
   return (
-    <div className="app-shell" style={{ position: "relative", minHeight: "100vh", backgroundColor: "#0b0d12" }}>
+    <div className="app-shell dotacion-view" style={{ position: "relative", minHeight: "100vh", backgroundColor: "#0b0d12" }}>
       <Emblem />
 
       <main className="dashboard" style={{ padding: "2rem", maxWidth: "1400px", margin: "0 auto", position: "relative", zIndex: 1 }}>
         {/* Enlace de regreso */}
+        <div className="dotacion-toolbar">
         <button
           onClick={onBack}
           style={{
@@ -165,6 +262,8 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
         >
           <Icon name="arrow" size={14} /> Volver al Dashboard
         </button>
+        <ThemeToggle />
+        </div>
 
         {/* Encabezado Principal */}
         <div className="command-strip" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "2rem", flexWrap: "wrap", gap: "1rem" }}>
@@ -217,7 +316,7 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
             </span>
             <input
               type="text"
-              placeholder="Buscar por nombre o cargo..."
+              placeholder="Buscar por nombre o rol..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{
@@ -255,6 +354,16 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
           </select>
         </div>
 
+        {/* Estado de carga desde el backend */}
+        {loading && (
+          <div style={{ marginBottom: "1rem", color: "#8b949e", fontSize: "0.875rem" }}>Cargando dotación desde el servidor…</div>
+        )}
+        {loadError && !loading && (
+          <div className="auth-alert error" style={{ marginBottom: "1rem" }}>
+            <Icon name="close" size={15} /> {loadError}
+          </div>
+        )}
+
         {/* Panel de Tabla de Personal */}
         <div
           className="panel"
@@ -274,6 +383,7 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
                   <th style={{ padding: "1rem 1.25rem" }}>TURNO ASIGNADO</th>
                   <th style={{ padding: "1rem 1.25rem" }}>CERTIFICACIONES</th>
                   <th style={{ padding: "1rem 1.25rem" }}>ESTADO</th>
+                  {isAuthorized && <th style={{ padding: "1rem 1.25rem" }}>ACCIONES</th>}
                 </tr>
               </thead>
               <tbody>
@@ -348,11 +458,18 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
                         {person.status}
                       </span>
                     </td>
+                    {isAuthorized && (
+                      <td style={{ padding: "1rem 1.25rem" }}>
+                        <button className="secondary-button" onClick={() => openEdit(person)} type="button">
+                          Editar
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={4} style={{ padding: "3rem", textAlign: "center", color: "#8b949e" }}>
+                    <td colSpan={isAuthorized ? 5 : 4} style={{ padding: "3rem", textAlign: "center", color: "#8b949e" }}>
                       No se encontraron integrantes en la dotación con ese criterio.
                     </td>
                   </tr>
@@ -541,6 +658,7 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
                     <option value="Teniente 1°">Teniente 1°</option>
                     <option value="Teniente 2°">Teniente 2°</option>
                     <option value="Capitán">Capitán</option>
+                    <option value="Administrativo">Administrativo</option>
                   </select>
                 </div>
 
@@ -727,6 +845,50 @@ export default function DotacionView({ onBack }: { onBack: () => void }) {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {editing && isAuthorized && (
+        <div className="personnel-edit-backdrop" onClick={() => setEditing(null)}>
+          <form className="personnel-edit-modal" onClick={(event) => event.stopPropagation()} onSubmit={handleEdit}>
+            <div className="personnel-edit-heading">
+              <div>
+                <div className="eyebrow">GESTIÓN DE PERSONAL</div>
+                <h2>Editar bombero</h2>
+              </div>
+              <button className="icon-button" onClick={() => setEditing(null)} type="button"><Icon name="close" size={18} /></button>
+            </div>
+            {error && <div className="auth-alert error"><Icon name="close" size={15} /> {error}</div>}
+            <div className="personnel-edit-grid">
+              <label>Nombre<input required value={editForm.nombre} onChange={(event) => setEditForm({ ...editForm, nombre: event.target.value })} /></label>
+              <label>Apellido<input required value={editForm.apellido} onChange={(event) => setEditForm({ ...editForm, apellido: event.target.value })} /></label>
+              <label>Correo<input required type="email" value={editForm.email} onChange={(event) => setEditForm({ ...editForm, email: event.target.value })} /></label>
+              <label>Rol
+                <select value={editForm.role} onChange={(event) => setEditForm({ ...editForm, role: event.target.value })}>
+                  <option value="CAPITAN">Capitán</option>
+                  <option value="OFICIAL">Oficial</option>
+                  <option value="MAQUINISTA">Maquinista</option>
+                  <option value="ADMINISTRATIVO">Administrativo</option>
+                  <option value="VOLUNTARIO">Voluntario</option>
+                </select>
+              </label>
+              <label>Turno<input value={editForm.shift} onChange={(event) => setEditForm({ ...editForm, shift: event.target.value })} /></label>
+              <label className="personnel-edit-wide">Certificaciones<input value={editForm.certifications} onChange={(event) => setEditForm({ ...editForm, certifications: event.target.value })} placeholder="Separadas por coma" /></label>
+              <label>Estado
+                <select value={editForm.status} onChange={(event) => setEditForm({ ...editForm, status: event.target.value })}>
+                  <option>Disponible</option>
+                  <option>En Servicio</option>
+                  <option>Licencia</option>
+                  <option>Inactivo</option>
+                </select>
+              </label>
+            </div>
+            <div className="personnel-edit-actions">
+              <button className="danger-button" disabled={editSubmitting} onClick={handleDelete} type="button">Eliminar registro</button>
+              <button className="secondary-button" onClick={() => setEditing(null)} type="button">Cancelar</button>
+              <button className="primary-button" disabled={editSubmitting} type="submit">{editSubmitting ? "Guardando..." : "Guardar cambios"}</button>
+            </div>
+          </form>
         </div>
       )}
 

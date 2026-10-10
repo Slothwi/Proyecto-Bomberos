@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AuthProvider } from "./context/AuthContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import { useAuth } from "./hooks/useAuth";
 import AuthView from "./views/AuthView";
 import DashboardView from "./views/DashboardView";
@@ -33,8 +34,10 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppRoutes />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

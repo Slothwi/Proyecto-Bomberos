@@ -1,6 +1,7 @@
 export const ROL_LABELS: Record<string, string> = {
   CAPITAN: "Capitán",
   OFICIAL: "Oficial",
+  MAQUINISTA: "Maquinista",
   ADMINISTRATIVO: "Administrativo",
   VOLUNTARIO: "Voluntario",
 };

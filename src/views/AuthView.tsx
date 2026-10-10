@@ -3,11 +3,12 @@ import companyLogo from "../assets/logo-bomberos.png";
 import { Icon } from "../components/Icon";
 import { useAuth } from "../hooks/useAuth";
 import { ApiError } from "../lib/api";
+import ThemeToggle from "../components/ThemeToggle";
 
 const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function AuthView() {
-  const { login } = useAuth();
+  const { login, expiredTick } = useAuth();
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -38,6 +39,7 @@ export default function AuthView() {
 
   return (
     <div className="app-shell auth-shell">
+      <div className="auth-theme-toggle"><ThemeToggle /></div>
       <div className="auth-card">
         <div className="auth-brand">
           <img alt="Emblema Bomba España, 10ª Compañía" className="auth-emblem" src={companyLogo} />
@@ -46,6 +48,11 @@ export default function AuthView() {
           <div className="auth-subtitle">Centro de Mando — Acceso restringido a personal autorizado</div>
         </div>
 
+        {expiredTick > 0 && (
+          <div className="auth-alert error">
+            <Icon name="close" size={15} /> Tu sesión expiró (el token dura 8h). Vuelve a iniciar sesión.
+          </div>
+        )}
         {notice && (
           <div className="auth-alert success">
             <Icon name="check" size={15} /> {notice}

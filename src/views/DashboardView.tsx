@@ -1,11 +1,13 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Emblem, Icon } from "../components/Icon";
 import { Button, Panel, SectionHeader } from "../components/ui";
 import FleetMap from "../components/FleetMap";
-import { crew, incidents, initialInventory } from "../data/mocks";
+import { incidents, initialInventory } from "../data/mocks";
 import { useAuth } from "../hooks/useAuth";
+import ThemeToggle from "../components/ThemeToggle";
 import type { Incident, InventoryItem, ViewName } from "../types";
 import { initialsOf, rolLabelFor } from "../utils/user";
+import { getUsuarios, type UsuarioRow } from "../lib/api";
 
 interface DashboardViewProps {
   onNavigate: (view: ViewName) => void;
@@ -22,6 +24,10 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
   const [inventoryList, setInventoryList] = useState<InventoryItem[]>(initialInventory);
   const [filterStatus, setFilterStatus] = useState<string>("todos");
   const [showAddInventory, setShowAddInventory] = useState(false);
+  const [allUsers, setAllUsers] = useState<UsuarioRow[]>([]);
+  const [crewLoading, setCrewLoading] = useState(true);
+  const [crewError, setCrewError] = useState("");
+  const [selectedMetric, setSelectedMetric] = useState<"total" | "active" | null>(null);
 
   const [newIncident, setNewIncident] = useState({
     code: "",
@@ -39,6 +45,26 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
     status: "Disponible",
     location: "Cuartel Central",
   });
+
+  useEffect(() => {
+    let active = true;
+    getUsuarios()
+      .then((rows) => {
+        if (!active) return;
+        setAllUsers(rows);
+        setCrewError("");
+      })
+      .catch((error) => {
+        if (active) setCrewError(error instanceof Error ? error.message : "No se pudo cargar el personal.");
+      })
+      .finally(() => {
+        if (active) setCrewLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   if (!session) return null;
 
@@ -94,6 +120,15 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
     return item.status.toLowerCase() === filterStatus.toLowerCase();
   });
 
+  const crewPreview = allUsers.slice(0, 4);
+  const activeUsers = allUsers.filter((user) => user.estado.trim().toLowerCase() === "disponible");
+  const activeCount = activeUsers.length;
+  const coverage = allUsers.length ? Math.round((activeCount / allUsers.length) * 100) : 0;
+  const userMetrics = [
+    { key: "total" as const, label: "Usuarios totales", count: allUsers.length },
+    { key: "active" as const, label: "Disponibles", count: activeCount },
+  ];
+
   const askAi = (prompt?: string) => {
     const next = prompt || query.trim();
     if (!next) return;
@@ -137,6 +172,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
         </form>
 
         <div className="header-actions">
+          <ThemeToggle />
           <Button className="icon-button" onClick={() => setNotice("No hay alertas nuevas")}>
             <Icon name="bell" />
             <span className="notification-dot" />
@@ -382,26 +418,42 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
               title="Personal y guardia"
             />
             <div className="shift-summary">
-              <div className="shift-ring"><strong>18</strong><span>ACTIVOS</span></div>
-              <div className="shift-bars">
-                <div><span><b>Oficiales</b><small>4 / 4</small></span><i><em className="full" /></i></div>
-                <div><span><b>Voluntarios</b><small>10 / 12</small></span><i><em className="mostly" /></i></div>
-                <div><span><b>Maquinistas</b><small>4 / 4</small></span><i><em className="full" /></i></div>
-              </div>
-              <div className="coverage"><span>COBERTURA</span><strong>90%</strong><small>Guardia 24/7</small></div>
-            </div>
-            <div className="crew-list">
-              {crew.map((member, index) => (
-                <div className="crew-row" key={member.name}>
-                  <div className={`crew-avatar crew-${index}`}>{member.initials}<span /></div>
-                  <div className="crew-identity"><strong>{member.name}</strong><span>{member.role}</span></div>
-                  <div className="certifications">
-                    {member.certifications.map((cert) => <span key={cert}>{cert}</span>)}
-                  </div>
-                  <span className="available"><Icon name="check" size={12} /> Disponible</span>
-                </div>
-              ))}
-            </div>
+               <div className="shift-ring"><strong>{activeCount}</strong><span>DISPONIBLES</span></div>
+               <div className="shift-bars">
+                 {userMetrics.map(({ key, label, count }) => (
+                   <button
+                     className={`shift-bar-button ${selectedMetric === key ? "selected" : ""}`}
+                     key={key}
+                     onClick={() => setSelectedMetric(selectedMetric === key ? null : key)}
+                     type="button"
+                   >
+                     <span><b>{label}</b><small>{count} usuarios</small></span>
+                     <i><em style={{ width: `${allUsers.length ? (count / allUsers.length) * 100 : 0}%` }} /></i>
+                   </button>
+                 ))}
+               </div>
+               <div className="coverage"><span>COBERTURA</span><strong>{coverage}%</strong><small>Usuarios disponibles</small></div>
+             </div>
+             <div className="crew-list">
+               {crewLoading && <div className="crew-empty">Cargando personal desde el servidor...</div>}
+               {!crewLoading && crewError && <div className="crew-empty">{crewError}</div>}
+               {!crewLoading && !crewError && crewPreview.length === 0 && <div className="crew-empty">No hay personal activo para mostrar.</div>}
+               {!crewLoading && !crewError && crewPreview.map((member, index) => (
+                 <button
+                   className={`crew-row ${selectedMetric === "total" || (selectedMetric === "active" && member.estado.trim().toLowerCase() === "disponible") ? "selected" : ""}`}
+                   key={member.id}
+                   onClick={() => setSelectedMetric(null)}
+                   type="button"
+                 >
+                   <div className={`crew-avatar crew-${index % 4}`}>{initialsOf(member.nombre, member.apellido)}<span /></div>
+                   <div className="crew-identity"><strong>{member.nombre} {member.apellido}</strong><span>{rolLabelFor(member.rol)}</span></div>
+                   <div className="certifications">
+                     {member.certificaciones.map((cert) => <span key={cert}>{cert}</span>)}
+                   </div>
+                   <span className="available"><Icon name="check" size={12} /> Disponible</span>
+                 </button>
+               ))}
+             </div>
           </Panel>
         </div>
       </main>

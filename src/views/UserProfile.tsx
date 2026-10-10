@@ -1,5 +1,6 @@
 import { useAuth } from "../hooks/useAuth";
 import { initialsOf, rolLabelFor } from "../utils/user";
+import ThemeToggle from "../components/ThemeToggle";
 
 interface UserProfileProps {
   onBack: () => void;
@@ -15,8 +16,8 @@ export default function UserProfile({ onBack, onLogout }: UserProfileProps) {
   const rolLabel = rolLabelFor(user.rol);
 
   return (
-    <div className="app-shell" style={{ padding: "2rem", minHeight: "100vh" }}>
-      <header style={{ marginBottom: "2rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+    <div className="app-shell profile-view" style={{ padding: "2rem", minHeight: "100vh" }}>
+      <header className="profile-header" style={{ marginBottom: "2rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <button 
           type="button" 
           className="button secondary-button" 
@@ -25,6 +26,8 @@ export default function UserProfile({ onBack, onLogout }: UserProfileProps) {
         >
           ← Volver al Panel Operativo
         </button>
+        <div className="profile-actions">
+        <ThemeToggle />
         <button
           type="button"
           className="button text-button"
@@ -33,6 +36,7 @@ export default function UserProfile({ onBack, onLogout }: UserProfileProps) {
         >
           Cerrar sesión →
         </button>
+        </div>
       </header>
 
       <main className="panel" style={{ padding: "2.5rem", maxWidth: "900px", margin: "0 auto", borderRadius: "12px" }}>
@@ -80,7 +84,7 @@ export default function UserProfile({ onBack, onLogout }: UserProfileProps) {
             </div>
 
             <div style={{ background: "#161b22", padding: "1rem", borderRadius: "8px", border: "1px solid #30363d" }}>
-              <span style={{ fontSize: "0.8rem", color: "#8b949e", display: "block" }}>Cargo / Rango</span>
+               <span style={{ fontSize: "0.8rem", color: "#8b949e", display: "block" }}>Rol</span>
               <strong style={{ fontSize: "1rem", color: "#f0f6fc" }}>{rolLabel}</strong>
             </div>
 

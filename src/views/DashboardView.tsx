@@ -23,14 +23,14 @@ function getLocalDateTime() {
   };
 }
 
-function toIncident(emergency: EmergencyPayload): Incident {
+function toIncident(emergency: EmergencyPayload & { title?: string }): Incident {
   const dispatchedAt = emergency.fechaDespacho ? new Date(emergency.fechaDespacho) : null;
   const status = emergency.estado || "En operación";
   const normalizedStatus = status.toLocaleLowerCase();
 
   return {
-    code: emergency.claveActo,
-    title: "Emergencia despachada",
+    code: emergency.claveActo,   
+    title: (emergency as any).title || "Emergencia despachada",
     address: emergency.direccion,
     time:
       dispatchedAt && !Number.isNaN(dispatchedAt.getTime())
@@ -82,24 +82,27 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
   });
 
   useEffect(() => {
-    let active = true;
-    getUsuarios()
-      .then((rows) => {
-        if (!active) return;
-        setAllUsers(rows);
-        setCrewError("");
-      })
-      .catch((error) => {
-        if (active) setCrewError(error instanceof Error ? error.message : "No se pudo cargar el personal.");
-      })
-      .finally(() => {
-        if (active) setCrewLoading(false);
-      });
+  let active = true;
+  getEmergencias()
+    .then((rows) => {
+      if (active) {
+        setIncidentsList(rows.map((row) => toIncident(row)));
+        setIncidentError("");
+      }
+    })
+    .catch((error) => {
+      if (active) {
+        setIncidentError(error instanceof Error ? error.message : "No se pudieron cargar las emergencias.");
+      }
+    })
+    .finally(() => {
+      if (active) setIncidentsLoading(false);
+    });
 
-    return () => {
-      active = false;
-    };
-  }, []);
+  return () => {
+    active = false;
+  };
+}, []);   
 
   useEffect(() => {
     let active = true;

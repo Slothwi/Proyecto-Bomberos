@@ -30,7 +30,7 @@ function toIncident(emergency: EmergencyPayload & { title?: string }): Incident 
 
   return {
     code: emergency.claveActo,   
-    title: (emergency as any).title || "Emergencia despachada",
+    title: emergency.titulo || "Emergencia despachada",
     address: emergency.direccion,
     time:
       dispatchedAt && !Number.isNaN(dispatchedAt.getTime())
@@ -150,6 +150,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
     try {
       const saved = await createEmergencia({
         claveActo: code,
+        titulo: form.title.trim(),
         direccion: address,
         estado: "En operación",
       });

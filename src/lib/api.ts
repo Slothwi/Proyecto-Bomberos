@@ -158,6 +158,7 @@ export async function fetchWithAuth(path: string, init: RequestInit = {}): Promi
 export interface EmergencyPayload {
   id?: number;
   claveActo: string;
+  titulo?: string;
   direccion: string;
   fechaDespacho?: string;
   fechaCierre?: string | null;

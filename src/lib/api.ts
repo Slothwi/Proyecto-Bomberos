@@ -26,7 +26,7 @@ export interface UsuarioRow {
 
 export const AUTH_EXPIRED_EVENT = "auth:expired";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000/api";
+const API_URL = import.meta.env.VITE_API_URL ?? "https://backbomberos.onrender.com/api";
 const TOKEN_KEY = "bomberos_token";
 const USER_KEY = "bomberos_user";
 

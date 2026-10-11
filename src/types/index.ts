@@ -22,13 +22,6 @@ export interface InventoryItem {
   location: string;
 }
 
-export interface CrewMember {
-  initials: string;
-  name: string;
-  role: string;
-  certifications: string[];
-}
-
 export interface Firefighter {
   id: string;
   rut?: string;

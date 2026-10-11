@@ -2,15 +2,48 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Emblem, Icon } from "../components/Icon";
 import { Button, Panel, SectionHeader } from "../components/ui";
 import FleetMap from "../components/FleetMap";
-import { incidents, initialInventory } from "../data/mocks";
+import { initialInventory } from "../data/mocks";
 import { useAuth } from "../hooks/useAuth";
 import ThemeToggle from "../components/ThemeToggle";
 import type { Incident, InventoryItem, ViewName } from "../types";
 import { initialsOf, rolLabelFor } from "../utils/user";
-import { getUsuarios, type UsuarioRow } from "../lib/api";
+import { createEmergencia, getEmergencias, getUsuarios, type EmergencyPayload, type UsuarioRow } from "../lib/api";
 
 interface DashboardViewProps {
   onNavigate: (view: ViewName) => void;
+}
+
+function getLocalDateTime() {
+  const now = new Date();
+  const pad = (value: number) => String(value).padStart(2, "0");
+
+  return {
+    date: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+    time: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
+  };
+}
+
+function toIncident(emergency: EmergencyPayload): Incident {
+  const dispatchedAt = emergency.fechaDespacho ? new Date(emergency.fechaDespacho) : null;
+  const status = emergency.estado || "En operación";
+  const normalizedStatus = status.toLocaleLowerCase();
+
+  return {
+    code: emergency.claveActo,
+    title: "Emergencia despachada",
+    address: emergency.direccion,
+    time:
+      dispatchedAt && !Number.isNaN(dispatchedAt.getTime())
+        ? dispatchedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        : "—",
+    unit: "—",
+    level: status,
+    tone: normalizedStatus.includes("cerrado") || normalizedStatus.includes("control")
+      ? "stable"
+      : normalizedStatus.includes("proceso")
+        ? "warning"
+        : "critical",
+  };
 }
 
 export default function DashboardView({ onNavigate }: DashboardViewProps) {
@@ -19,8 +52,11 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
   const [aiMessage, setAiMessage] = useState("¿En qué puedo asistir al mando?");
   const [showNewIncident, setShowNewIncident] = useState(false);
   const [notice, setNotice] = useState("");
+  const [incidentError, setIncidentError] = useState("");
+  const [savingIncident, setSavingIncident] = useState(false);
 
-  const [incidentsList, setIncidentsList] = useState<Incident[]>(incidents);
+  const [incidentsList, setIncidentsList] = useState<Incident[]>([]);
+  const [incidentsLoading, setIncidentsLoading] = useState(true);
   const [inventoryList, setInventoryList] = useState<InventoryItem[]>(initialInventory);
   const [filterStatus, setFilterStatus] = useState<string>("todos");
   const [showAddInventory, setShowAddInventory] = useState(false);
@@ -29,14 +65,13 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
   const [crewError, setCrewError] = useState("");
   const [selectedMetric, setSelectedMetric] = useState<"total" | "active" | null>(null);
 
-  const [newIncident, setNewIncident] = useState({
+  const [newIncident, setNewIncident] = useState(() => ({
     code: "",
     title: "",
     address: "",
     unit: "B-10",
-    date: new Date().toISOString().split("T")[0],
-    time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-  });
+    ...getLocalDateTime(),
+  }));
 
   const [newItem, setNewItem] = useState({
     name: "",
@@ -66,39 +101,78 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    getEmergencias()
+      .then((rows) => {
+        if (active) {
+          setIncidentsList(rows.map(toIncident));
+          setIncidentError("");
+        }
+      })
+      .catch((error) => {
+        if (active) {
+          setIncidentError(error instanceof Error ? error.message : "No se pudieron cargar las emergencias.");
+        }
+      })
+      .finally(() => {
+        if (active) setIncidentsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   if (!session) return null;
 
   const fullName = `${session.user.nombre} ${session.user.apellido ?? ""}`.trim();
   const initials = initialsOf(session.user.nombre, session.user.apellido ?? "");
   const rolLabel = rolLabelFor(session.user.rol);
 
-  const handleCreateIncident = () => {
-    if (!newIncident.code.trim() || !newIncident.address.trim()) return;
+  const handleCreateIncident = async () => {
+    const form = newIncident;
+    const code = form.code.trim();
+    const address = form.address.trim();
+    if (savingIncident) return;
+    if (!code || !address) {
+      setIncidentError("Ingresa la clave de emergencia y la ubicación.");
+      return;
+    }
 
-    setIncidentsList((prev) => [
-      {
-        code: newIncident.code,
-        title: newIncident.title || "Emergencia despachada",
-        address: newIncident.address,
-        time: newIncident.time,
-        unit: newIncident.unit,
-        level: "En operación",
-        tone: "critical",
-      },
-      ...prev,
-    ]);
+    setSavingIncident(true);
+    setIncidentError("");
+    setNotice("");
 
-    setShowNewIncident(false);
-    setNotice("Emergencia registrada e ingresada al historial");
+    try {
+      const saved = await createEmergencia({
+        claveActo: code,
+        direccion: address,
+        estado: "En operación",
+      });
 
-    setNewIncident({
-      code: "",
-      title: "",
-      address: "",
-      unit: "B-10",
-      date: new Date().toISOString().split("T")[0],
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    });
+      setIncidentsList((prev) => [
+        {
+          ...toIncident(saved),
+          title: form.title.trim() || "Emergencia despachada",
+          unit: form.unit.trim(),
+        },
+        ...prev,
+      ]);
+      setShowNewIncident(false);
+      setNotice("Emergencia guardada en la base de datos");
+      setNewIncident({
+        code: "",
+        title: "",
+        address: "",
+        unit: "B-10",
+        ...getLocalDateTime(),
+      });
+    } catch (error) {
+      setIncidentError(error instanceof Error ? error.message : "No se pudo guardar la emergencia.");
+    } finally {
+      setSavingIncident(false);
+    }
   };
 
   const handleAddInventory = () => {
@@ -269,6 +343,8 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
             <div className="incident-head">
               <span>INCIDENTE / UBICACIÓN</span><span>DESPACHO</span><span>UNIDAD</span><span>ESTADO</span>
             </div>
+            {incidentError && <div role="alert" className="auth-alert error">{incidentError}</div>}
+            {incidentsLoading && <div className="crew-loading">Cargando emergencias...</div>}
             <div className="incident-list">
               {incidentsList.map((incident) => (
                 <div className="incident-row" key={`${incident.code}-${incident.time}`}>
@@ -470,6 +546,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
               CLAVE DE EMERGENCIA
               <input 
                 autoFocus 
+                required
                 placeholder="Ej. 10-0-1" 
                 value={newIncident.code}
                 onChange={(e) => setNewIncident({ ...newIncident, code: e.target.value })}
@@ -488,6 +565,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
             <label>
               UBICACIÓN
               <input 
+                required
                 placeholder="Dirección o referencia" 
                 value={newIncident.address}
                 onChange={(e) => setNewIncident({ ...newIncident, address: e.target.value })}
@@ -503,10 +581,12 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
               />
             </label>
 
+            {incidentError && <div role="alert" className="error-message">{incidentError}</div>}
+
             <div className="modal-actions">
-              <Button className="secondary-button" onClick={() => setShowNewIncident(false)}>Cancelar</Button>
-              <Button className="primary-button" onClick={handleCreateIncident}>
-                <Icon name="radio" size={16} /> Activar despacho
+              <Button className="secondary-button" disabled={savingIncident} onClick={() => setShowNewIncident(false)}>Cancelar</Button>
+              <Button className="primary-button" disabled={savingIncident} onClick={handleCreateIncident}>
+                <Icon name="radio" size={16} /> {savingIncident ? "Guardando..." : "Activar despacho"}
               </Button>
             </div>
           </section>

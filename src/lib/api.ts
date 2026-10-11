@@ -154,3 +154,24 @@ export async function fetchWithAuth(path: string, init: RequestInit = {}): Promi
     },
   });
 }
+
+export interface EmergencyPayload {
+  id?: number;
+  claveActo: string;
+  direccion: string;
+  fechaDespacho?: string;
+  fechaCierre?: string | null;
+  estado?: string;
+}
+
+export async function getEmergencias(): Promise<EmergencyPayload[]> {
+  return request<EmergencyPayload[]>("/emergencias", { headers: authHeader() });
+}
+
+export async function createEmergencia(payload: EmergencyPayload): Promise<EmergencyPayload> {
+  return request<EmergencyPayload>("/emergencias", {
+    method: "POST",
+    headers: authHeader(),
+    body: JSON.stringify(payload),
+  });
+}

@@ -176,3 +176,18 @@ export async function createEmergencia(payload: EmergencyPayload): Promise<Emerg
     body: JSON.stringify(payload),
   });
 }
+
+export async function consultarIA(prompt: string): Promise<string> {
+  const response = await fetch(`${API_URL}/ia/consulta`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Error al consultar la IA Operativa.');
+  }
+
+  const data = await response.json();
+  return data.respuesta;
+}

@@ -7,7 +7,8 @@ import { useAuth } from "../hooks/useAuth";
 import ThemeToggle from "../components/ThemeToggle";
 import type { Incident, InventoryItem, ViewName } from "../types";
 import { initialsOf, rolLabelFor } from "../utils/user";
-import { createEmergencia, getEmergencias, getUsuarios, type EmergencyPayload, type UsuarioRow } from "../lib/api";
+import { createEmergencia, getEmergencias, getUsuarios, consultarIA, type EmergencyPayload, type UsuarioRow } from "../lib/api";
+
 
 interface DashboardViewProps {
   onNavigate: (view: ViewName) => void;
@@ -207,13 +208,25 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
     { key: "active" as const, label: "Disponibles", count: activeCount },
   ];
 
-  const askAi = (prompt?: string) => {
+ const askAi = async (prompt?: string) => {
     const next = prompt || query.trim();
     if (!next) return;
-    setAiMessage(`Solicitud en análisis: “${next}”`);
+
     setQuery("");
-    setNotice("IA Operativa procesando consulta");
-    window.setTimeout(() => setNotice(""), 2400);
+    setAiMessage("Procesando consulta con IA Operativa...");
+    setNotice("Consultando a Gemini...");
+
+    try {
+      const respuestaIA = await consultarIA(next);
+      setAiMessage(respuestaIA);
+      setNotice("Respuesta generada con éxito");
+    } catch (error) {
+      console.error("Error al consultar IA:", error);
+      setAiMessage("No se pudo obtener respuesta de la IA en este momento.");
+      setNotice("Error al conectar con la IA");
+    } finally {
+      window.setTimeout(() => setNotice(""), 3000);
+    }
   };
 
   const submitSearch = (event: FormEvent) => {
@@ -292,7 +305,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
           <div className="ai-orb"><Icon name="spark" size={25} /></div>
           <div className="ai-copy">
             <div className="ai-label">IA OPERATIVA <span>ACTIVA</span></div>
-            <div className="ai-title">{aiMessage}</div>
+            <div className="ai-title whitespace-pre-line leading-relaxed">{aiMessage}</div>
             <div className="ai-description">Consulta recursos, dotación e historial operativo en tiempo real.</div>
           </div>
           <div className="quick-actions">

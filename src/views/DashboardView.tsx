@@ -82,35 +82,13 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
     location: "Cuartel Central",
   });
 
-  useEffect(() => {
-  let active = true;
-  getEmergencias()
-    .then((rows) => {
-      if (active) {
-        setIncidentsList(rows.map((row) => toIncident(row)));
-        setIncidentError("");
-      }
-    })
-    .catch((error) => {
-      if (active) {
-        setIncidentError(error instanceof Error ? error.message : "No se pudieron cargar las emergencias.");
-      }
-    })
-    .finally(() => {
-      if (active) setIncidentsLoading(false);
-    });
-
-  return () => {
-    active = false;
-  };
-}, []);   
-
+  // 1. Cargar emergencias
   useEffect(() => {
     let active = true;
     getEmergencias()
       .then((rows) => {
         if (active) {
-          setIncidentsList(rows.map(toIncident));
+          setIncidentsList(rows.map((row) => toIncident(row)));
           setIncidentError("");
         }
       })
@@ -121,6 +99,32 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
       })
       .finally(() => {
         if (active) setIncidentsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);   
+
+  // 2. Cargar usuarios / dotación (reemplaza al duplicado)
+  useEffect(() => {
+    let active = true;
+    setCrewLoading(true);
+
+    getUsuarios()
+      .then((rows) => {
+        if (active) {
+          setAllUsers(rows);
+          setCrewError("");
+        }
+      })
+      .catch((error) => {
+        if (active) {
+          setCrewError(error instanceof Error ? error.message : "No se pudo cargar la dotación.");
+        }
+      })
+      .finally(() => {
+        if (active) setCrewLoading(false);
       });
 
     return () => {

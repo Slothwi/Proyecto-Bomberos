@@ -564,22 +564,39 @@ const formattedTime = now.toLocaleTimeString('es-CL', {
                {crewLoading && <div className="crew-empty">Cargando personal desde el servidor...</div>}
                {!crewLoading && crewError && <div className="crew-empty">{crewError}</div>}
                {!crewLoading && !crewError && crewPreview.length === 0 && <div className="crew-empty">No hay personal activo para mostrar.</div>}
-               {!crewLoading && !crewError && crewPreview.map((member, index) => (
-                 <button
-                   className={`crew-row ${selectedMetric === "total" || (selectedMetric === "active" && member.estado.trim().toLowerCase() === "disponible") ? "selected" : ""}`}
-                   key={member.id}
-                   onClick={() => setSelectedMetric(null)}
-                   type="button"
-                 >
-                   <div className={`crew-avatar crew-${index % 4}`}>{initialsOf(member.nombre, member.apellido)}<span /></div>
-                   <div className="crew-identity"><strong>{member.nombre} {member.apellido}</strong><span>{rolLabelFor(member.rol)}</span></div>
-                   <div className="certifications">
-                     {member.certificaciones.map((cert) => <span key={cert}>{cert}</span>)}
-                   </div>
-                   <span className="available"><Icon name="check" size={12} /> Disponible</span>
-                 </button>
-               ))}
-             </div>
+               {!crewLoading && !crewError && crewPreview.map((member, index) => {
+            const isAvailable = member.estado.trim().toLowerCase() === "disponible";
+
+            return (
+              <button
+                className={`crew-row ${selectedMetric === "total" || (selectedMetric === "active" && isAvailable) ? "selected" : ""}`}
+                key={member.id}
+                onClick={() => setSelectedMetric(null)}
+                type="button"
+              >
+                <div className={`crew-avatar crew-${index % 4}`}>
+                  {initialsOf(member.nombre, member.apellido)}
+                  <span />
+                </div>
+                <div className="crew-identity">
+                  <strong>{member.nombre} {member.apellido}</strong>
+                  <span>{rolLabelFor(member.rol)}</span>
+                </div>
+                <div className="certifications">
+                  {member.certificaciones.map((cert) => (
+                    <span key={cert}>{cert}</span>
+                  ))}
+                </div>
+
+                {/* RENDERIZADO DINÁMICO SEGÚN EL ESTADO REAL */}
+                <span className={isAvailable ? "available" : "unavailable"}>
+                  <Icon name={isAvailable ? "check" : "alert"} size={12} />
+                  {member.estado}
+                </span>
+              </button>
+            );
+          })}
+            </div>
           </Panel>
         </div>
       </main>

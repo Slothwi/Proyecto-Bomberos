@@ -165,6 +165,7 @@ const formattedTime = now.toLocaleTimeString('es-CL', {
   const fullName = `${session.user.nombre} ${session.user.apellido ?? ""}`.trim();
   const initials = initialsOf(session.user.nombre, session.user.apellido ?? "");
   const rolLabel = rolLabelFor(session.user.rol);
+  const canManageOperations = ["CAPITAN", "ADMINISTRATIVO"].includes(session.user.rol.toUpperCase());
 
   const handleCreateIncident = async () => {
     const form = newIncident;
@@ -381,11 +382,11 @@ const formattedTime = now.toLocaleTimeString('es-CL', {
           {/* 1. GESTIÓN DE EMERGENCIAS */}
           <Panel className="incidents-panel">
             <SectionHeader
-              action={
+              action={canManageOperations ? (
                 <Button className="primary-button" onClick={() => setShowNewIncident(true)}>
                   <Icon name="plus" size={16} /> Nueva emergencia
                 </Button>
-              }
+              ) : undefined}
               eyebrow="EN TIEMPO REAL"
               icon="radio"
               title="Gestión de emergencias"

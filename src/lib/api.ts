@@ -192,3 +192,24 @@ export async function consultarIA(prompt: string): Promise<string> {
   const data = await response.json();
   return data.respuesta;
 }
+
+export interface UnidadPayload {
+  id?: number;
+  nombre: string;
+  tipo: string;
+  estado: string;
+}
+
+export async function getUnidades(): Promise<UnidadPayload[]> {
+  return request<UnidadPayload[]>("/unidades", { headers: authHeader() });
+}
+
+export async function createUnidad(
+  payload: Omit<UnidadPayload, "id">,
+): Promise<{ message: string; unidad: UnidadPayload }> {
+  return request("/unidades", {
+    method: "POST",
+    headers: authHeader(),
+    body: JSON.stringify(payload),
+  });
+}

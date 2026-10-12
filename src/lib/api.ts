@@ -161,6 +161,7 @@ export interface EmergencyPayload {
   claveActo: string;
   titulo?: string;
   direccion: string;
+  unidadAsignada?: string;
   fechaDespacho?: string;
   fechaCierre?: string | null;
   estado?: string;

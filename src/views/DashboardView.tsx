@@ -2,21 +2,12 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Emblem, Icon } from "../components/Icon";
 import { Button, Panel, SectionHeader } from "../components/ui";
 import FleetMap from "../components/FleetMap";
+import { initialInventory } from "../data/mocks";
 import { useAuth } from "../hooks/useAuth";
 import ThemeToggle from "../components/ThemeToggle";
 import type { Incident, InventoryItem, ViewName } from "../types";
 import { initialsOf, rolLabelFor } from "../utils/user";
-import {
-  createEmergencia,
-  createUnidad,
-  getEmergencias,
-  getUnidades,
-  getUsuarios,
-  consultarIA,
-  type EmergencyPayload,
-  type UnidadPayload,
-  type UsuarioRow,
-} from "../lib/api";
+import { createEmergencia, getEmergencias, getUsuarios, consultarIA, type EmergencyPayload, type UsuarioRow } from "../lib/api";
 
 
 interface DashboardViewProps {
@@ -33,10 +24,13 @@ function getLocalDateTime() {
   };
 }
 
-function toIncident(emergency: EmergencyPayload & { title?: string }): Incident {
+function toIncident(emergency: any): Incident {
   const dispatchedAt = emergency.fechaDespacho ? new Date(emergency.fechaDespacho) : null;
   const status = emergency.estado || "En operación";
   const normalizedStatus = status.toLocaleLowerCase();
+
+  // Lee el valor que envía la BD (o usa el que venga en el objeto)
+  const unidadBD = emergency.unidadAsignada || emergency.unidad || emergency.unit;
 
   return {
     code: emergency.claveActo,   
@@ -46,7 +40,7 @@ function toIncident(emergency: EmergencyPayload & { title?: string }): Incident 
       dispatchedAt && !Number.isNaN(dispatchedAt.getTime())
         ? dispatchedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
         : "—",
-    unit: "—",
+    unit: unidadBD && unidadBD.trim() !== "" ? unidadBD : "—", // Muestra la unidad real o "—"
     level: status,
     tone: normalizedStatus.includes("cerrado") || normalizedStatus.includes("control")
       ? "stable"
@@ -54,35 +48,6 @@ function toIncident(emergency: EmergencyPayload & { title?: string }): Incident 
         ? "warning"
         : "critical",
   };
-}
-
-function toInventoryItem(unidad: UnidadPayload): InventoryItem {
-  const statusLabels: Record<string, string> = {
-    DISPONIBLE: "Disponible",
-    EN_SERVICIO: "En servicio",
-    MANTENIMIENTO: "Mantenimiento",
-    FUERA_DE_SERVICIO: "Fuera de servicio",
-  };
-  const estado = unidad.estado.toLocaleUpperCase();
-
-  return {
-    id: String(unidad.id),
-    name: unidad.nombre,
-    category: "Unidad",
-    type: unidad.tipo,
-    status: statusLabels[estado] ?? unidad.estado,
-    location: "—",
-  };
-}
-
-function toApiUnitStatus(status: string): string {
-  const statusValues: Record<string, string> = {
-    Disponible: "DISPONIBLE",
-    "En servicio": "EN_SERVICIO",
-    Mantenimiento: "MANTENIMIENTO",
-    "Fuera de servicio": "FUERA_DE_SERVICIO",
-  };
-  return statusValues[status] ?? status;
 }
 
 export default function DashboardView({ onNavigate }: DashboardViewProps) {
@@ -96,10 +61,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
 
   const [incidentsList, setIncidentsList] = useState<Incident[]>([]);
   const [incidentsLoading, setIncidentsLoading] = useState(true);
-  const [inventoryList, setInventoryList] = useState<InventoryItem[]>([]);
-  const [inventoryLoading, setInventoryLoading] = useState(true);
-  const [inventoryError, setInventoryError] = useState("");
-  const [savingInventory, setSavingInventory] = useState(false);
+  const [inventoryList, setInventoryList] = useState<InventoryItem[]>(initialInventory);
   const [filterStatus, setFilterStatus] = useState<string>("todos");
   const [showAddInventory, setShowAddInventory] = useState(false);
   const [allUsers, setAllUsers] = useState<UsuarioRow[]>([]);
@@ -125,31 +87,15 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
 
   const [now, setNow] = useState(new Date());
 
-  useEffect(() => {
-    let active = true;
+useEffect(() => {
+  const timer = setInterval(() => {
+    setNow(new Date());
+  }, 1000);
 
-    getUnidades()
-      .then((rows) => {
-        if (active) {
-          setInventoryList(rows.map(toInventoryItem));
-          setInventoryError("");
-        }
-      })
-      .catch((error) => {
-        if (active) {
-          setInventoryError(error instanceof Error ? error.message : "No se pudo cargar el inventario.");
-        }
-      })
-      .finally(() => {
-        if (active) setInventoryLoading(false);
-      });
+  return () => clearInterval(timer);
+}, []);
 
-    return () => {
-      active = false;
-    };
-  }, []);
-
- // Formato de fecha: "Lunes, 12 Oct 2026"
+// Formato de fecha: "Lunes, 12 Oct 2026"
 const formattedDate = now.toLocaleDateString('es-CL', {
   weekday: 'long',
   day: 'numeric',
@@ -239,6 +185,7 @@ const formattedTime = now.toLocaleTimeString('es-CL', {
         claveActo: code,
         titulo: form.title.trim(),
         direccion: address,
+        unidadAsignada: form.unit.trim(),
         estado: "En operación",
       });
 
@@ -266,33 +213,18 @@ const formattedTime = now.toLocaleTimeString('es-CL', {
     }
   };
 
-  const handleAddInventory = async () => {
-    if (savingInventory) return;
-    if (!newItem.name.trim()) {
-      setInventoryError("Ingresa el nombre del equipo o vehículo.");
-      return;
-    }
+  const handleAddInventory = () => {
+    if (!newItem.name.trim()) return;
 
-    setSavingInventory(true);
-    setInventoryError("");
-    setNotice("");
+    const added: InventoryItem = {
+      id: `EQ-0${inventoryList.length + 1}`,
+      ...newItem,
+    };
 
-    try {
-      const saved = await createUnidad({
-        nombre: newItem.name.trim(),
-        tipo: newItem.type.trim() || newItem.category,
-        estado: toApiUnitStatus(newItem.status),
-      });
-
-      setInventoryList((items) => [toInventoryItem(saved.unidad), ...items]);
-      setShowAddInventory(false);
-      setNotice("Unidad guardada en la base de datos");
-      setNewItem({ name: "", category: "Vehículo", type: "", status: "Disponible", location: "Cuartel Central" });
-    } catch (error) {
-      setInventoryError(error instanceof Error ? error.message : "No se pudo guardar la unidad.");
-    } finally {
-      setSavingInventory(false);
-    }
+    setInventoryList([added, ...inventoryList]);
+    setShowAddInventory(false);
+    setNotice("Recurso añadido al inventario");
+    setNewItem({ name: "", category: "Vehículo", type: "", status: "Disponible", location: "Cuartel Central" });
   };
 
   const filteredInventory = inventoryList.filter((item) => {
@@ -567,11 +499,6 @@ const formattedTime = now.toLocaleTimeString('es-CL', {
             </div>
 
             <div style={{ overflowX: "auto" }}>
-              {inventoryLoading && <div className="crew-loading">Cargando inventario desde el servidor...</div>}
-              {inventoryError && !showAddInventory && <div role="alert" className="auth-alert error">{inventoryError}</div>}
-              {!inventoryLoading && !inventoryError && inventoryList.length === 0 && (
-                <div className="crew-loading">No hay unidades registradas.</div>
-              )}
               <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.9rem" }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid #30363d", color: "#8b949e", fontSize: "0.8rem" }}>
@@ -718,11 +645,10 @@ const formattedTime = now.toLocaleTimeString('es-CL', {
 
       {/* MODAL REGISTRAR INVENTARIO */}
       {showAddInventory && (
-        <div className="modal-backdrop" onMouseDown={() => !savingInventory && setShowAddInventory(false)}>
+        <div className="modal-backdrop" onMouseDown={() => setShowAddInventory(false)}>
           <section className="modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="modal-title">Registrar nuevo recurso</div>
             <div className="modal-copy">Ingresa un nuevo equipo o vehículo al inventario operativo.</div>
-            {inventoryError && <div role="alert" className="auth-alert error">{inventoryError}</div>}
 
             <label>
               NOMBRE DEL EQUIPO O VEHÍCULO
@@ -781,11 +707,11 @@ const formattedTime = now.toLocaleTimeString('es-CL', {
             </label>
 
             <div className="modal-actions">
-              <Button className="secondary-button" disabled={savingInventory} onClick={() => setShowAddInventory(false)}>
+              <Button className="secondary-button" onClick={() => setShowAddInventory(false)}>
                 Cancelar
               </Button>
-              <Button className="primary-button" disabled={savingInventory} onClick={handleAddInventory}>
-                {savingInventory ? "Guardando..." : "Guardar en inventario"}
+              <Button className="primary-button" onClick={handleAddInventory}>
+                Guardar en inventario
               </Button>
             </div>
           </section>

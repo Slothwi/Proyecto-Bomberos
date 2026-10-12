@@ -26,7 +26,8 @@ export interface UsuarioRow {
 
 export const AUTH_EXPIRED_EVENT = "auth:expired";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000/api";
+//const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000/api";
+const API_URL = import.meta.env.VITE_API_URL ?? "https://g3c3s60m-4000.brs.devtunnels.ms/api";
 const TOKEN_KEY = "bomberos_token";
 const USER_KEY = "bomberos_user";
 

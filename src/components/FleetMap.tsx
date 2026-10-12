@@ -2,9 +2,7 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import truckImg from "../assets/bombero.png";
-import { useTheme } from "../context/ThemeContext";
 
-// Ícono personalizado con la imagen del carro de bomberos
 const fireTruckIcon = L.icon({
   iconUrl: truckImg,
   iconSize: [45, 22],
@@ -13,34 +11,12 @@ const fireTruckIcon = L.icon({
 });
 
 const vehicles = [
-  {
-    id: "B-10",
-    name: "Bomba B-10",
-    lat: -33.4489,
-    lng: -70.6693,
-    status: "Operativo",
-    fuel: "92%",
-  },
-  {
-    id: "RX-10",
-    name: "Rescate RX-10",
-    lat: -33.4435,
-    lng: -70.6582,
-    status: "En operación (Emergencia)",
-    fuel: "78%",
-  },
-  {
-    id: "H-10",
-    name: "HazMat H-10",
-    lat: -33.4352,
-    lng: -70.6481,
-    status: "En Cuartel",
-    fuel: "100%",
-  },
+  { id: "B-10", name: "Bomba B-10", lat: -33.4489, lng: -70.6693, status: "Operativo", fuel: "92%" },
+  { id: "RX-10", name: "Rescate RX-10", lat: -33.4435, lng: -70.6582, status: "En operación", fuel: "78%" },
+  { id: "H-10", name: "HazMat H-10", lat: -33.4352, lng: -70.6481, status: "En Cuartel", fuel: "100%" },
 ];
 
 export default function FleetMap() {
-  const { theme } = useTheme();
   const centerPosition: [number, number] = [-33.445, -70.66];
 
   return (
@@ -51,11 +27,10 @@ export default function FleetMap() {
         scrollWheelZoom={false}
         style={{ width: "100%", height: "100%", background: "#1d2127" }}
       >
-        {/* Capa de OpenStreetMap 100% gratuita con estilo oscuro mediante CSS */}
+        {/* Capa de Google Maps 100% libre sin API Key */}
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          className={theme === "dark" ? "dark-tiles" : "light-tiles"}
+          attribution='&copy; <a href="https://maps.google.com">Google Maps</a>'
+          url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
         />
 
         {vehicles.map((vehicle) => (
@@ -76,17 +51,6 @@ export default function FleetMap() {
           </Marker>
         ))}
       </MapContainer>
-
-      {/* Estilo CSS inyectado para volver el mapa oscuro sin necesidad de API Key */}
-      <style>{`
-        .dark-tiles {
-          filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
-        }
-
-        .light-tiles {
-          filter: none;
-        }
-      `}</style>
     </div>
   );
 }

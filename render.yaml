@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: bomberos-frontend
+    runtime: static
+    buildCommand: pnpm install --frozen-lockfile && pnpm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://backbomberos.onrender.com/api
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

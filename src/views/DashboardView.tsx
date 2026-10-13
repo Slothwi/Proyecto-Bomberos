@@ -7,7 +7,7 @@ import { useAuth } from "../hooks/useAuth";
 import ThemeToggle from "../components/ThemeToggle";
 import type { Incident, InventoryItem, ViewName } from "../types";
 import { initialsOf, rolLabelFor } from "../utils/user";
-import { createEmergencia, getEmergencias, getUsuarios, consultarIA, type EmergencyPayload, type UsuarioRow } from "../lib/api";
+import { createEmergencia, getEmergencias, getUsuarios, consultarIA, type UsuarioRow } from "../lib/api";
 
 
 interface DashboardViewProps {

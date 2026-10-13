@@ -1,6 +1,3 @@
-export type { RegisterPayload, Session, SessionUser } from "../lib/api";
-export type { ApiError } from "../lib/api";
-
 export type ViewName = "dashboard" | "dotacion" | "perfil";
 
 export interface Incident {

@@ -143,18 +143,6 @@ export function logout(): void {
   localStorage.removeItem(USER_KEY);
 }
 
-export async function fetchWithAuth(path: string, init: RequestInit = {}): Promise<Response> {
-  const token = localStorage.getItem(TOKEN_KEY);
-  return fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token ?? ""}`,
-      ...(init.headers ?? {}),
-    },
-  });
-}
-
 export interface EmergencyPayload {
   id?: number;
   claveActo: string;

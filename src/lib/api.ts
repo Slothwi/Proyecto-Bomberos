@@ -173,11 +173,11 @@ export async function consultarIA(prompt: string): Promise<string> {
     body: JSON.stringify({ prompt }),
   });
 
+  const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error('Error al consultar la IA Operativa.');
+    throw new Error(typeof data.message === "string" ? data.message : "Error al consultar la IA Operativa.");
   }
 
-  const data = await response.json();
   return data.respuesta;
 }
 
